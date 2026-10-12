@@ -1,0 +1,120 @@
+{
+  "schema_version": 8,
+  "simulation": {
+    "grid": {
+      "nz": 200,
+      "nr": 40
+    },
+    "geometry": {
+      "specified_by": "length_radius",
+      "length_m": 0.2,
+      "radius_m": 0.0401
+    },
+    "wall": {
+      "thickness_m": 0.0019
+    },
+    "bed": {
+      "architecture": "packed_bed",
+      "material": null,
+      "design": {
+        "eps_b": 0.388,
+        "flow_model": "wall-channeling-reduced",
+        "channeling": {
+          "porosity_model": "de_klerk",
+          "drag_layer_width_dp": 1.0,
+          "inlet_distribution": "distributed"
+        },
+        "wall_htc_model": "specchia_1980"
+      }
+    },
+    "mixture": {
+      "species": ["CO2", "N2"],
+      "closure_species": "N2",
+      "adsorbates": ["CO2", "N2"]
+    },
+    "sorbent": {
+      "density_kg_m3": 918.3006535947712,
+      "porosity": 0.6107246063608431,
+      "particle_radius_m": 0.001,
+      "conductivity_W_mK": 0.17,
+      "heat_capacity": {"model": "constant", "parameters": {"value_J_kgK": 1100.0}},
+      "heats_of_adsorption_J_mol": {"CO2": -36000.0, "N2": -18000.0},
+      "fixed_adsorbates": {"H2O": {"loading_mol_per_kg": 0.15, "heat_capacity_J_molK": 75.0}}
+    },
+    "adsorption": {
+      "equilibrium_systems": {
+        "CompetitiveSips": {
+          "datasets": {"CompetitiveSips": "zeolite-13x-v2-breakthrough"},
+          "parameters": {
+            "reference_temperature_K": 298.15,
+            "pressure_unit_Pa": 100000.0,
+            "min_temperature_K": 150.0,
+            "max_temperature_K": 1000.0,
+            "modifier_loading_mol_per_kg": 0.15,
+            "capacity_modifier_coefficient_kg_per_mol": 0.13704019714790763,
+            "affinity_modifier_coefficient_kg_per_mol": 0.43448762455139345,
+            "component_parameters": {
+              "CO2": {
+                "qinf_ref_mol_per_kg": 7.268,
+                "qinf_temperature_coefficient": -0.61684,
+                "affinity_prefactor_inverse_pressure_unit": 0.0001129,
+                "affinity_heat_J_per_mol": 28389.0,
+                "heterogeneity_ref": 0.42456,
+                "heterogeneity_temperature_coefficient": 0.72378
+              },
+              "N2": {
+                "qinf_ref_mol_per_kg": 4.051,
+                "qinf_temperature_coefficient": 0.0,
+                "affinity_prefactor_inverse_pressure_unit": 5.847e-05,
+                "affinity_heat_J_per_mol": 18474.0,
+                "heterogeneity_ref": 0.98624,
+                "heterogeneity_temperature_coefficient": 0.0
+              }
+            }
+          }
+        }
+      },
+      "kinetics": {
+        "CO2": {"model": "LDF", "parameters": {"k_LDF_s_inv": 0.1}},
+        "N2": {"model": "LDF", "parameters": {"k_LDF_s_inv": 0.5}}
+      }
+    },
+    "reference": {
+      "co2_mole_fraction": 0.12,
+      "relative_humidity": 0.0,
+      "pressure_Pa": 230000.0,
+      "velocity_m_s": 0.05552653347149184
+    },
+    "solver": {
+      "rtol": 1e-06,
+      "atol": 1e-08
+    },
+    "cycle": {
+      "steps": {
+        "startup": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.12,
+            "relative_humidity": 0.0,
+            "initial_solid_loadings_mol_per_kg": {"CO2": 0.0, "N2": 0.357}
+          },
+          "flow": {"volumetric_flow_m3_s": 0.0002805040778279175},
+          "thermal": {"external_htc_W_m2K": 100.0},
+          "pressure": {
+            "initial_pressure_Pa": 230000.0,
+            "outlet_pressure_Pa": 230000.0,
+            "feed_pressure_Pa": 230000.0,
+            "ambient_pressure_Pa": 230000.0
+          },
+          "horizon": {"nominal_time_s": 3600.0, "event_max_time_s": 3600.0}
+        }
+      }
+    }
+  },
+  "execution": {
+    "cycle_steps": ["startup"],
+    "termination_mode": "time",
+    "print_to_terminal": true,
+    "print_cycle_build": false,
+    "extra_tag": "tutorial_06"
+  }
+}

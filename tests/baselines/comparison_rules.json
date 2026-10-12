@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "policies": {
+    "v3_regression": {
+      "purpose": "Detect unintended numerical changes to the current pyDAC v3 DAC model.",
+      "case_identity": "SHA-256 and case fingerprint must match exactly.",
+      "solver_contract": {
+        "required": [
+          "success=true",
+          "termination_reason=final_time",
+          "final_time_s=2.0"
+        ],
+        "informational_only": [
+          "nfev",
+          "njev",
+          "solver message text"
+        ]
+      },
+      "runtime_properties": {
+        "relative_tolerance": 1e-10,
+        "absolute_tolerance": 1e-12
+      },
+      "dynamic_outputs": {
+        "relative_tolerance": 5e-05,
+        "absolute_tolerance_by_quantity": {
+          "mole_fraction": 2e-10,
+          "concentration_mol_m3": 1e-08,
+          "loading_mol_kg": 1e-09,
+          "temperature_K": 2e-05,
+          "pressure_Pa": 0.02,
+          "time_s": 1e-12
+        }
+      },
+      "mass_conservation": {
+        "purpose": "Closure between the integrated net inlet-outlet mass and the change of stored bed inventory.",
+        "integrated_state_relative_error_pct_max": 2.0
+      }
+    }
+  }
+}

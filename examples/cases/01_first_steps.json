@@ -1,0 +1,16 @@
+{
+  "schema_version": 8,
+  "simulation": {
+    "grid": {
+      "nz": 50,
+      "nr": 1
+    }
+  },
+  "execution": {
+    "plot_profiles": true,
+    "plot_format": "png",
+    "print_to_terminal": false,
+    "print_cycle_build": false,
+    "extra_tag": "tutorial_01"
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "schema_version": 8,
+  "simulation": {
+    "grid": {
+      "nz": 50,
+      "nr": 25
+    },
+    "geometry": {
+      "specified_by": "volume_aspect_ratio",
+      "volume_m3": 0.001,
+      "aspect_ratio": 2.0
+    },
+    "mixture": {
+      "species": ["CO2", "N2"],
+      "closure_species": "N2",
+      "adsorbates": ["CO2", "N2"]
+    },
+    "sorbent": {
+      "density_kg_m3": 918.3,
+      "porosity": 0.611,
+      "particle_radius_m": 0.001,
+      "conductivity_W_mK": 0.17,
+      "heat_capacity": {"model": "constant", "parameters": {"value_J_kgK": 1100.0}},
+      "heats_of_adsorption_J_mol": {"CO2": -36000.0, "N2": -18000.0}
+    },
+    "adsorption": {
+      "equilibrium_systems": {
+        "CompetitiveSips": {
+          "datasets": {"CompetitiveSips": "hefti-2015-13x"},
+          "parameters": {
+            "reference_temperature_K": 298.15,
+            "pressure_unit_Pa": 100000.0,
+            "component_parameters": {
+              "CO2": {
+                "qinf_ref_mol_per_kg": 7.268,
+                "qinf_temperature_coefficient": -0.61684,
+                "affinity_prefactor_inverse_pressure_unit": 0.0001129,
+                "affinity_heat_J_per_mol": 28389.0,
+                "heterogeneity_ref": 0.42456,
+                "heterogeneity_temperature_coefficient": 0.72378
+              },
+              "N2": {
+                "qinf_ref_mol_per_kg": 4.051,
+                "qinf_temperature_coefficient": 0.0,
+                "affinity_prefactor_inverse_pressure_unit": 5.847e-05,
+                "affinity_heat_J_per_mol": 18474.0,
+                "heterogeneity_ref": 0.98624,
+                "heterogeneity_temperature_coefficient": 0.0
+              }
+            }
+          }
+        }
+      },
+      "kinetics": {
+        "CO2": {"model": "LDF", "parameters": {"k_LDF_s_inv": 0.1}},
+        "N2": {"model": "LDF", "parameters": {"k_LDF_s_inv": 0.5}}
+      }
+    },
+    "reference": {
+      "co2_mole_fraction": 0.12,
+      "relative_humidity": 0.0
+    },
+    "cycle": {
+      "steps": {
+        "startup": {
+          "composition": {"co2_feed_mole_fraction": 0.12},
+          "horizon": {"nominal_time_s": 3600.0}
+        },
+        "w_des": {
+          "thermal": {"jacket_temperature_K": 423.15},
+          "pressure": {"outlet_pressure_Pa": 101325.0, "feed_pressure_Pa": 101325.0},
+          "termination": {"mode": "time"},
+          "horizon": {"nominal_time_s": 3600.0}
+        }
+      }
+    }
+  },
+  "execution": {
+    "cycle_steps": ["startup", "w_des"],
+    "plot_profiles": true,
+    "plot_format": "png",
+    "print_to_terminal": true,
+    "print_cycle_build": false,
+    "extra_tag": "tutorial_02"
+  }
+}

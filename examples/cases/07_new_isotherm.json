@@ -1,0 +1,18 @@
+{
+  "schema_version": 8,
+  "simulation": {
+    "grid": {
+      "nz": 25,
+      "nr": 1
+    }
+  },
+  "execution": {
+    "cycle_steps": ["startup", "blow", "heat", "s_des"],
+    "termination_mode": "time",
+    "plot_profiles": true,
+    "plot_format": "png",
+    "print_to_terminal": false,
+    "print_cycle_build": false,
+    "extra_tag": "tutorial_07"
+  }
+}

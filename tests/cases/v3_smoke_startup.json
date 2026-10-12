@@ -1,0 +1,595 @@
+{
+  "schema_version": 1,
+  "simulation": {
+    "grid": {
+      "nz": 4,
+      "nr": 1,
+      "nt": 5,
+      "nr_plot_2d": 50
+    },
+    "solver": {
+      "rtol": 1e-06,
+      "atol": 1e-08,
+      "atol_scalar_mass": 1e-08,
+      "atol_scalar_energy": 1e-06
+    },
+    "bed": {
+      "architecture": "packed_bed",
+      "design": {
+        "eps_b": 0.38
+      },
+      "material": null
+    },
+    "geometry": {
+      "length_m": 0.06827840632552958,
+      "radius_m": 0.06827840632552958,
+      "aspect_ratio": 0.5,
+      "volume_m3": 0.001
+    },
+    "wall": {
+      "thickness_m": 0.01,
+      "specific_heat_J_kgK": 500.0,
+      "density_kg_m3": 8000.0,
+      "conductivity_W_mK": 15.0,
+      "wall_htc_override_W_m2K": null,
+      "bed_wall_htc_override_W_m2K": null
+    },
+    "sorbent": {
+      "conductivity_W_mK": 0.43,
+      "density_kg_m3": 744.0,
+      "particle_radius_m": 0.00025,
+      "porosity": 0.338,
+      "pore_radius_m": 2.85e-08,
+      "heat_of_adsorption_co2_J_mol": -81000.0,
+      "heat_of_adsorption_h2o_J_mol": -46000.0
+    },
+    "adsorption": {
+      "isotherm_co2": "Toth",
+      "isotherm_h2o": "GAB",
+      "toth_data": "Cleaned-Toth",
+      "kinetic_co2": "LDFRateCO2",
+      "kinetic_h2o": "LDFRateH2O",
+      "k_ldf_co2": 0.003,
+      "k_ldf_h2o": 0.00083,
+      "co_adsorption": true
+    },
+    "reference": {
+      "temperature_K": 298.15,
+      "pressure_Pa": 101325.0,
+      "relative_humidity": 0.5,
+      "co2_mole_fraction": 0.0004,
+      "velocity_m_s": 0.1
+    },
+    "cycle": {
+      "steps": {
+        "startup": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0004,
+            "relative_humidity": 0.5,
+            "co2_initial_mole_fraction": 0.0,
+            "initial_relative_humidity": 0.0,
+            "o2_feed_mole_fraction": null,
+            "n2_feed_mole_fraction": null,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.001,
+            "steam_mass_flow_kg_s": null,
+            "blowdown_valve_conductance_m_s": null,
+            "pressurization_valve_conductance_m_s": null
+          },
+          "thermal": {
+            "feed_temperature_K": 298.15,
+            "initial_temperature_K": 298.15,
+            "jacket_temperature_K": 298.15,
+            "ambient_temperature_K": null,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": 101325.0,
+            "outlet_pressure_Pa": 101325.0,
+            "feed_pressure_Pa": 101325.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 2.0,
+            "event_max_time_s": 2.0
+          },
+          "termination": {
+            "mode": "time",
+            "metric": "avg_bed_loading_fraction_CO2",
+            "direction": "above",
+            "threshold_value": 0.95,
+            "threshold_source": null,
+            "threshold_offset": 0.0,
+            "label": "Average bed CO2 loading reached 95% of the reference capacity",
+            "stop_on_low_pressure": false,
+            "low_pressure_stop_Pa": null,
+            "stop_on_pressure_plateau": false,
+            "pressure_plateau_rate_tolerance_nd": null,
+            "pressure_plateau_arm_below_Pa": null,
+            "pressure_plateau_arm_above_Pa": null
+          }
+        },
+        "ads": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0004,
+            "relative_humidity": 0.5,
+            "co2_initial_mole_fraction": null,
+            "initial_relative_humidity": null,
+            "o2_feed_mole_fraction": null,
+            "n2_feed_mole_fraction": null,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.001,
+            "steam_mass_flow_kg_s": null,
+            "blowdown_valve_conductance_m_s": null,
+            "pressurization_valve_conductance_m_s": null
+          },
+          "thermal": {
+            "feed_temperature_K": 298.15,
+            "initial_temperature_K": null,
+            "jacket_temperature_K": 298.15,
+            "ambient_temperature_K": null,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": null,
+            "outlet_pressure_Pa": 101325.0,
+            "feed_pressure_Pa": 101325.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 39000.0,
+            "event_max_time_s": 43200.0
+          },
+          "termination": {
+            "mode": "time",
+            "metric": "avg_bed_loading_fraction_CO2",
+            "direction": "above",
+            "threshold_value": 0.95,
+            "threshold_source": null,
+            "threshold_offset": 0.0,
+            "label": "Average bed CO2 loading reached 95% of the reference capacity",
+            "stop_on_low_pressure": false,
+            "low_pressure_stop_Pa": null,
+            "stop_on_pressure_plateau": false,
+            "pressure_plateau_rate_tolerance_nd": null,
+            "pressure_plateau_arm_below_Pa": null,
+            "pressure_plateau_arm_above_Pa": null
+          }
+        },
+        "blow": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0,
+            "relative_humidity": 0.0,
+            "co2_initial_mole_fraction": null,
+            "initial_relative_humidity": null,
+            "o2_feed_mole_fraction": 0.0,
+            "n2_feed_mole_fraction": 0.0,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.0,
+            "steam_mass_flow_kg_s": null,
+            "blowdown_valve_conductance_m_s": 0.01,
+            "pressurization_valve_conductance_m_s": null
+          },
+          "thermal": {
+            "feed_temperature_K": 298.15,
+            "initial_temperature_K": null,
+            "jacket_temperature_K": 298.15,
+            "ambient_temperature_K": null,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": null,
+            "outlet_pressure_Pa": 20000.0,
+            "feed_pressure_Pa": 20000.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 180.0,
+            "event_max_time_s": 900.0
+          },
+          "termination": {
+            "mode": "event",
+            "metric": "max_internal_pressure",
+            "direction": "below",
+            "threshold_value": null,
+            "threshold_source": "p_out",
+            "threshold_offset": 25.0,
+            "label": "Maximum internal pressure reached the target vacuum level",
+            "stop_on_low_pressure": false,
+            "low_pressure_stop_Pa": null,
+            "stop_on_pressure_plateau": true,
+            "pressure_plateau_rate_tolerance_nd": 1e-05,
+            "pressure_plateau_arm_below_Pa": 50000.0,
+            "pressure_plateau_arm_above_Pa": null
+          }
+        },
+        "heat": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0,
+            "relative_humidity": 0.0,
+            "co2_initial_mole_fraction": null,
+            "initial_relative_humidity": null,
+            "o2_feed_mole_fraction": 0.0,
+            "n2_feed_mole_fraction": 0.0,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.0,
+            "steam_mass_flow_kg_s": null,
+            "blowdown_valve_conductance_m_s": null,
+            "pressurization_valve_conductance_m_s": null
+          },
+          "thermal": {
+            "feed_temperature_K": 373.15,
+            "initial_temperature_K": null,
+            "jacket_temperature_K": 373.15,
+            "ambient_temperature_K": null,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": null,
+            "outlet_pressure_Pa": 20000.0,
+            "feed_pressure_Pa": 20000.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 9000.0,
+            "event_max_time_s": 21600.0
+          },
+          "termination": {
+            "mode": "time",
+            "metric": "min_bed_temperature",
+            "direction": "above",
+            "threshold_value": null,
+            "threshold_source": "T_cond",
+            "threshold_offset": 0.0,
+            "label": "Minimum bed temperature exceeded the steam condensation temperature",
+            "stop_on_low_pressure": false,
+            "low_pressure_stop_Pa": null,
+            "stop_on_pressure_plateau": false,
+            "pressure_plateau_rate_tolerance_nd": null,
+            "pressure_plateau_arm_below_Pa": null,
+            "pressure_plateau_arm_above_Pa": null
+          }
+        },
+        "w_purge": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0,
+            "relative_humidity": 0.0,
+            "co2_initial_mole_fraction": null,
+            "initial_relative_humidity": null,
+            "o2_feed_mole_fraction": 0.0,
+            "n2_feed_mole_fraction": 0.0,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.0,
+            "steam_mass_flow_kg_s": null,
+            "blowdown_valve_conductance_m_s": null,
+            "pressurization_valve_conductance_m_s": null
+          },
+          "thermal": {
+            "feed_temperature_K": 373.15,
+            "initial_temperature_K": null,
+            "jacket_temperature_K": 373.15,
+            "ambient_temperature_K": null,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": null,
+            "outlet_pressure_Pa": 20000.0,
+            "feed_pressure_Pa": 20000.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 900.0,
+            "event_max_time_s": 9000.0
+          },
+          "termination": {
+            "mode": "event",
+            "metric": "max_bed_oxygen_mole_fraction",
+            "direction": "below",
+            "threshold_value": 1e-07,
+            "threshold_source": null,
+            "threshold_offset": 0.0,
+            "label": "Maximum bed oxygen mole fraction dropped below 0.1 ppm",
+            "stop_on_low_pressure": false,
+            "low_pressure_stop_Pa": null,
+            "stop_on_pressure_plateau": false,
+            "pressure_plateau_rate_tolerance_nd": null,
+            "pressure_plateau_arm_below_Pa": null,
+            "pressure_plateau_arm_above_Pa": null
+          }
+        },
+        "s_purge": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0,
+            "relative_humidity": 1.0,
+            "co2_initial_mole_fraction": null,
+            "initial_relative_humidity": null,
+            "o2_feed_mole_fraction": 0.0,
+            "n2_feed_mole_fraction": 0.0,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.008610995631318015,
+            "steam_mass_flow_kg_s": 0.001,
+            "blowdown_valve_conductance_m_s": null,
+            "pressurization_valve_conductance_m_s": null
+          },
+          "thermal": {
+            "feed_temperature_K": 373.15,
+            "initial_temperature_K": null,
+            "jacket_temperature_K": 373.15,
+            "ambient_temperature_K": 298.15,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": null,
+            "outlet_pressure_Pa": 20000.0,
+            "feed_pressure_Pa": 20000.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 300.0,
+            "event_max_time_s": 600.0
+          },
+          "termination": {
+            "mode": "event",
+            "metric": "max_bed_oxygen_mole_fraction",
+            "direction": "below",
+            "threshold_value": 1e-07,
+            "threshold_source": null,
+            "threshold_offset": 0.0,
+            "label": "Maximum bed oxygen mole fraction dropped below 0.1 ppm",
+            "stop_on_low_pressure": false,
+            "low_pressure_stop_Pa": null,
+            "stop_on_pressure_plateau": false,
+            "pressure_plateau_rate_tolerance_nd": null,
+            "pressure_plateau_arm_below_Pa": null,
+            "pressure_plateau_arm_above_Pa": null
+          }
+        },
+        "s_des": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0,
+            "relative_humidity": 1.0,
+            "co2_initial_mole_fraction": null,
+            "initial_relative_humidity": null,
+            "o2_feed_mole_fraction": 0.0,
+            "n2_feed_mole_fraction": 0.0,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.008610995631318015,
+            "steam_mass_flow_kg_s": 0.001,
+            "blowdown_valve_conductance_m_s": null,
+            "pressurization_valve_conductance_m_s": null
+          },
+          "thermal": {
+            "feed_temperature_K": 373.15,
+            "initial_temperature_K": null,
+            "jacket_temperature_K": 373.15,
+            "ambient_temperature_K": 298.15,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": null,
+            "outlet_pressure_Pa": 20000.0,
+            "feed_pressure_Pa": 20000.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 3600.0,
+            "event_max_time_s": 10800.0
+          },
+          "termination": {
+            "mode": "time",
+            "metric": "avg_bed_loading_fraction_CO2",
+            "direction": "below",
+            "threshold_value": 0.05,
+            "threshold_source": null,
+            "threshold_offset": 0.0,
+            "label": "Average bed CO2 loading dropped below 5% of the reference capacity",
+            "stop_on_low_pressure": false,
+            "low_pressure_stop_Pa": null,
+            "stop_on_pressure_plateau": false,
+            "pressure_plateau_rate_tolerance_nd": null,
+            "pressure_plateau_arm_below_Pa": null,
+            "pressure_plateau_arm_above_Pa": null
+          }
+        },
+        "w_des": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0,
+            "relative_humidity": 0.0,
+            "co2_initial_mole_fraction": null,
+            "initial_relative_humidity": null,
+            "o2_feed_mole_fraction": 0.0,
+            "n2_feed_mole_fraction": 0.0,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.0,
+            "steam_mass_flow_kg_s": null,
+            "blowdown_valve_conductance_m_s": null,
+            "pressurization_valve_conductance_m_s": null
+          },
+          "thermal": {
+            "feed_temperature_K": 373.15,
+            "initial_temperature_K": null,
+            "jacket_temperature_K": 373.15,
+            "ambient_temperature_K": 298.15,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": null,
+            "outlet_pressure_Pa": 20000.0,
+            "feed_pressure_Pa": 20000.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 86400.0,
+            "event_max_time_s": 86400.0
+          },
+          "termination": {
+            "mode": "event",
+            "metric": "avg_bed_loading_fraction_CO2",
+            "direction": "below",
+            "threshold_value": 0.05,
+            "threshold_source": null,
+            "threshold_offset": 0.0,
+            "label": "Average bed CO2 loading dropped below 5% of the reference capacity",
+            "stop_on_low_pressure": false,
+            "low_pressure_stop_Pa": null,
+            "stop_on_pressure_plateau": false,
+            "pressure_plateau_rate_tolerance_nd": null,
+            "pressure_plateau_arm_below_Pa": null,
+            "pressure_plateau_arm_above_Pa": null
+          }
+        },
+        "cool": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0,
+            "relative_humidity": 0.0,
+            "co2_initial_mole_fraction": null,
+            "initial_relative_humidity": null,
+            "o2_feed_mole_fraction": 0.0,
+            "n2_feed_mole_fraction": 0.0,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.0,
+            "steam_mass_flow_kg_s": null,
+            "blowdown_valve_conductance_m_s": null,
+            "pressurization_valve_conductance_m_s": null
+          },
+          "thermal": {
+            "feed_temperature_K": 298.15,
+            "initial_temperature_K": null,
+            "jacket_temperature_K": 298.15,
+            "ambient_temperature_K": null,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": null,
+            "outlet_pressure_Pa": 20000.0,
+            "feed_pressure_Pa": 20000.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 9000.0,
+            "event_max_time_s": 10800.0
+          },
+          "termination": {
+            "mode": "event",
+            "metric": "max_bed_temperature",
+            "direction": "below",
+            "threshold_value": 323.15,
+            "threshold_source": null,
+            "threshold_offset": 0.0,
+            "label": "Maximum bed temperature dropped below the cooldown target",
+            "stop_on_low_pressure": true,
+            "low_pressure_stop_Pa": 100.0,
+            "stop_on_pressure_plateau": false,
+            "pressure_plateau_rate_tolerance_nd": null,
+            "pressure_plateau_arm_below_Pa": null,
+            "pressure_plateau_arm_above_Pa": null
+          }
+        },
+        "press": {
+          "composition": {
+            "co2_feed_mole_fraction": 0.0004,
+            "relative_humidity": 0.5,
+            "co2_initial_mole_fraction": null,
+            "initial_relative_humidity": null,
+            "o2_feed_mole_fraction": null,
+            "n2_feed_mole_fraction": null,
+            "o2_initial_mole_fraction": null,
+            "n2_initial_mole_fraction": null
+          },
+          "flow": {
+            "volumetric_flow_m3_s": 0.001,
+            "steam_mass_flow_kg_s": null,
+            "blowdown_valve_conductance_m_s": null,
+            "pressurization_valve_conductance_m_s": 0.01
+          },
+          "thermal": {
+            "feed_temperature_K": 298.15,
+            "initial_temperature_K": null,
+            "jacket_temperature_K": 298.15,
+            "ambient_temperature_K": null,
+            "external_htc_W_m2K": 1000.0
+          },
+          "pressure": {
+            "initial_pressure_Pa": null,
+            "outlet_pressure_Pa": 101325.0,
+            "feed_pressure_Pa": 101325.0,
+            "ambient_pressure_Pa": 101325.0
+          },
+          "horizon": {
+            "nominal_time_s": 300.0,
+            "event_max_time_s": 900.0
+          },
+          "termination": {
+            "mode": "event",
+            "metric": "min_internal_pressure",
+            "direction": "above",
+            "threshold_value": null,
+            "threshold_source": "p_feed",
+            "threshold_offset": -25.0,
+            "label": "Minimum internal pressure reached the feed pressure",
+            "stop_on_low_pressure": false,
+            "low_pressure_stop_Pa": null,
+            "stop_on_pressure_plateau": true,
+            "pressure_plateau_rate_tolerance_nd": 1e-05,
+            "pressure_plateau_arm_below_Pa": null,
+            "pressure_plateau_arm_above_Pa": 50000.0
+          }
+        }
+      }
+    }
+  },
+  "execution": {
+    "solve": true,
+    "plot_profiles": false,
+    "plot_final_cycle_profiles": false,
+    "keep_only_final_cycle": false,
+    "print_to_terminal": false,
+    "print_cycle_build": false,
+    "output_root": "simulation_results",
+    "max_cycles": 50,
+    "css_tolerance": 0.005,
+    "resume_from_cycle": null,
+    "use_sparsity": false,
+    "compute_numerical_sparsity": false,
+    "cvode_sparsity_mode": "pde_only",
+    "cycle_steps": [
+      "startup"
+    ],
+    "termination_mode": "time",
+    "step_options": {},
+    "cycle_options": {},
+    "css_probe_step": null,
+    "require_css": true,
+    "extra_tag": null,
+    "plot_format": "pdf",
+    "plot_cyclic_profiles": true,
+    "generate_kpi_outputs": true
+  }
+}

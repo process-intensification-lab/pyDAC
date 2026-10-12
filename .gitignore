@@ -1,0 +1,44 @@
+# Python bytecode / cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter and IPython history
+.ipynb_checkpoints/
+*.ipynb~
+
+# Local logs/output
+*.log
+*.tmp
+*.bak
+
+# Environment / virtualenvs (in case local)
+.venv/
+env/
+venv/
+
+# Mac/Windows/Linux system files
+.DS_Store
+Thumbs.db
+
+# Test cache
+.cache/
+.pytest_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Simulation results
+simulation_results/*
+
+# Jacobian masks are generated in memory; no cache folder may come back
+src/pydac/core/sparsity_patterns/*/
+
+.vscode/
+
+# Run folders and saved files written by the tutorials (from any folder)
+examples/**/simulation_results/
+output_cases/

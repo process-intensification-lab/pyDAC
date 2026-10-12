@@ -1,0 +1,33 @@
+{
+  "schema_version": 8,
+  "simulation": {
+    "grid": {
+      "nz": 25,
+      "nr": 1
+    },
+    "geometry": {
+      "aspect_ratio": 2.0
+    },
+    "cycle": {
+      "steps": {
+        "ads": {
+          "horizon": {
+            "nominal_time_s": 3600.0
+          }
+        },
+        "s_des": {
+          "flow": {
+            "steam_mass_flow_kg_s": 1e-3
+          }
+        }
+      }
+    }
+  },
+  "execution": {
+    "max_cycles": 3,
+    "require_css": false,
+    "plot_cyclic_profiles": false,
+    "generate_kpi_outputs": false,
+    "extra_tag": "quick_1D"
+  }
+}

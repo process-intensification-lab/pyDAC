@@ -1,0 +1,29 @@
+# Citation metadata. At each GitHub release Zenodo adds the DOI and the release date;
+# the paper becomes `preferred-citation` once it is published.
+cff-version: 1.2.0
+message: "If you use pyDAC in your research, please cite it as below."
+title: "pyDAC: simulation of adsorption-based direct air capture processes"
+type: software
+authors:
+  - given-names: Mattia
+    family-names: Galanti
+  - given-names: Ivo
+    family-names: Roghair
+  - given-names: Martin
+    name-particle: van
+    family-names: Sint Annaland
+license: MIT
+version: 3.0.0
+repository-code: "https://github.com/process-intensification-lab/pyDAC"
+keywords:
+  - direct air capture
+  - adsorption
+  - TVSA
+  - cyclic adsorption
+  - packed bed
+  - process simulation
+abstract: >-
+  pyDAC simulates adsorption cycles composed from configurable steps (by default a
+  steam-assisted temperature-vacuum swing adsorption, TVSA, cycle) for CO2 direct air capture
+  in 1D and 2D packed beds: single step sequences, cycles to cyclic steady state with KPIs, and
+  local NSGA-II optimization of the operating conditions.

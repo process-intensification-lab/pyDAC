@@ -1,0 +1,153 @@
+# CI of the public repository. Linux x86_64 is supported, Windows is tested, macOS is neither.
+# Every test job installs the BUILT WHEEL, never the checkout: the src/ layout keeps `pydac` off
+# the path, so the suite run from the repository root tests the installed artifact (runners/ and
+# tests/ come from the root). Distribution `pydac3`; import name and command stay `pydac`.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 5 * * 1"   # weekly: the "newest" jobs catch new dependency releases
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash   # same commands on Windows
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: Build wheel and sdist (hatchling)
+        run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # Own job, not a step of `build`: a dead documentation link must not hide the test results.
+  docs-links:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Docs links
+        run: python docs/check_links.py
+
+  test:
+    needs: build
+    name: ${{ matrix.name }} (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: floor, os: ubuntu-latest, python: "3.11", install: lowest}
+          - {name: qualification, os: ubuntu-latest, python: "3.12.2", install: lock}
+          - {name: base-only, os: ubuntu-latest, python: "3.12", install: base}
+          - {name: newest, os: ubuntu-latest, python: "3.13", install: highest}
+          - {name: newest, os: ubuntu-latest, python: "3.14", install: highest}
+          - {name: windows, os: windows-latest, python: "3.14", install: highest}
+    env:
+      PYTHONNOUSERSITE: "1"
+      OMP_NUM_THREADS: "1"
+      OPENBLAS_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        id: python
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/download-artifact@v5
+        with:
+          name: dist
+          path: dist/
+      - name: Install the wheel
+        id: install
+        run: |
+          # The interpreter path from setup-python, not `which python`: on Windows the Git-Bash
+          # path (/c/hostedtoolcache/...) is not a path uv can open.
+          uv venv --python '${{ steps.python.outputs.python-path }}' .venv
+          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+          python --version
+          wheel="$(ls dist/*.whl)"
+          case "${{ matrix.install }}" in
+            lowest)  # The floors must be *direct* requirements: with the wheel as the only direct
+                     # requirement, lowest-direct resolves its dependencies to the newest versions.
+                     uv pip install --resolution lowest-direct -r pyproject.toml
+                     uv pip install --no-deps "./$wheel" ;;                                  # = the floors of pyproject.toml
+            lock)    uv pip install --require-hashes -r ci/qualification-lock-py3.12.txt
+                     uv pip install --no-deps "./$wheel" ;;                                  # = the qualification environment
+            base)    uv pip install "./$wheel" ;;                                            # no extras (pymoo is a base dependency)
+            highest) uv pip install --resolution highest "./$wheel" ;;
+          esac
+          uv pip install --group test       # in the lock already (pytest 8.3.5): no change there
+          uv pip check                      # after every install, the test group included
+          uv pip freeze | grep -iE '^(pydac3|numpy|scipy|pandas|pymrm|scikit-sundae|matplotlib|seaborn|pymoo|pytest)=='
+          python -c "import pydac, sys; print(pydac.__file__); assert 'site-packages' in pydac.__file__"
+      - name: Tests
+        run: |
+          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+          if [ "${{ matrix.install }}" = lock ]; then python -m pytest -q
+          else python -m pytest -q -m "not qualification"; fi            # fingerprint baselines hold only in the lock
+      - name: Smoke (installed CLI)
+        # Also after failed tests (the job stays red): the smoke codes are reported per job.
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        # One deterministic exit code per command (0 success, 3 CSS required but not reached), asserted
+        # and printed as "SMOKE <name>: exit=<code> expected=<code>" (repeated as one block at the
+        # end and in the job summary; a mismatch fails the step after all commands ran). Each
+        # command's output goes to smoke_<name>.log and is printed (last 60 lines) only on a
+        # mismatch, so the test summary above stays readable in the log tail.
+        # Explicit tiny grid; each css run gets its own extra_tag, so no run folder is occupied.
+        # Runs outside the checkout with the console script of the venv (installed wheel).
+        run: |
+          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+          pydac="$(command -v pydac)"
+          echo "pydac command: $pydac"
+          case "$pydac" in "$PWD"/.venv/*) ;; *) echo "pydac is not the venv console script"; exit 1 ;; esac
+          cd "$RUNNER_TEMP"
+          report="" mismatch=0
+          smoke() {  # smoke NAME EXPECTED_EXIT ARGS...
+            local name="$1" expected="$2" code=0 line
+            shift 2
+            "$pydac" "$@" > "smoke_$name.log" 2>&1 || code=$?
+            line="SMOKE $name: exit=$code expected=$expected"
+            if [ "$code" -ne "$expected" ]; then
+              line="$line MISMATCH"; mismatch=1
+              tail -n 60 "smoke_$name.log"                       # the full output only when it matters
+            fi
+            echo "$line"
+            report+="$line"$'\n'
+          }
+          smoke version 0 --version
+          smoke validate 0 validate --export-case case.json --set grid.nz=10 --set grid.nr=5
+          smoke steps 0 steps --case case.json
+          # capped run, CSS not required: exit 0 whether or not cycle 2 reaches CSS
+          smoke capped 0 css --config case.json --set execution.max_cycles=2 \
+                --set execution.require_css=false --set execution.extra_tag=capped
+          # converged branch: a loose tolerance makes cycle 2 reach CSS -> exit 0
+          smoke reached 0 css --config case.json --set execution.max_cycles=2 \
+                --set execution.css_tolerance=1e6 --set execution.extra_tag=reached
+          # CSS required but impossible (cycle 1 only stores the CSS baseline) -> exactly exit 3
+          smoke strict 3 css --config case.json --set execution.max_cycles=1 \
+                --set execution.require_css=true --set execution.extra_tag=strict
+          printf '%s' "$report"
+          { echo '### Smoke exit codes'; echo '```'; printf '%s' "$report"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit "$mismatch"

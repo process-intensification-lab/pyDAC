@@ -1,0 +1,324 @@
+{
+  "schema_version": 1,
+  "scope": "Known species, state-layout, model-selection, output-field, and persistence hardcoding in pyDAC v3 before the extensibility refactor.",
+  "audit_patterns": [
+    "species literals: CO2, H2O, O2, N2, Ar, SPECIES",
+    "packed result keys: y_2d, y_1d, y_scalars",
+    "state arithmetic: fixed multiples of N, fixed Nc_* values, fixed field indices"
+  ],
+  "entries": [
+    {
+      "id": "species_constants_and_properties",
+      "paths": [
+        "src/pydac/core/column_model.py",
+        "src/pydac/core/species_catalog.py",
+        "src/pydac/utils/flow_transforms.py"
+      ],
+      "sites": [
+        "ColumnModelMoL.set_simulation_parameters catalog arrays",
+        "init_visc_mix/init_cp_mix/init_lambda_mix/calc_Diff_coeffs",
+        "species_catalog.SPECIES_CATALOG",
+        "flow_transforms.MW_H2O catalog lookup"
+      ],
+      "hardcoding": "The immutable catalog owns molecular weights, Lennard-Jones data, Fuller volumes, conductivity values, and Shomate coefficients. Declared-order arrays serve initialization and the generic RHS; localized DAC aliases remain only for reporting compatibility, alongside the standalone steam-flow utility.",
+      "disposition": "retain catalog-owned arrays in the physical setup; the standalone steam utility is DAC-specific and reads the catalog for H2O molecular weight, while supervised reporting aliases remain intentional",
+      "target_phases": [
+        1,
+        "5A",
+        "5B",
+        6,
+        7
+      ],
+      "owner": "species catalog and generic initialization"
+    },
+    {
+      "id": "fixed_model_bundle_and_factory_branches",
+      "paths": [
+        "src/pydac/core/column_model_factory.py",
+        "src/pydac/core/column_model_input.py",
+        "src/pydac/utils/model_registry.py",
+        "src/pydac/config/migrations.py"
+      ],
+      "sites": [
+        "ColumnModelFactory named configuration flow",
+        "AdsorptionModelBundle generic named lookup",
+        "generic registry composition utility",
+        "isolated schema-v1 compatibility upgrade"
+      ],
+      "hardcoding": "The composition root and runtime bundle expose only named schema-v2 mixture/model declarations. Fixed CO2/H2O schema-v1 knowledge remains isolated in the load-time migration.",
+      "disposition": "retain the explicit schema-v1 load-time migration until compatibility removal is scheduled",
+      "target_phases": [
+        3,
+        4,
+        "5B"
+      ],
+      "owner": "model contracts and registries"
+    },
+    {
+      "id": "species_specific_equilibrium_and_kinetics_contracts",
+      "paths": [
+        "src/pydac/core/isotherm_models.py",
+        "src/pydac/core/kinetic_models.py",
+        "src/pydac/utils/model_registry.py"
+      ],
+      "sites": [
+        "short name-based contracts and explicit physical registries in src",
+        "parameterized CompetitiveSips equation with validation-owned fit coefficients",
+        "generic selection/coverage bookkeeping in utils",
+        "named equilibrium-first RHS calls"
+      ],
+      "hardcoding": "Toth, GAB, WADST coupling, parameterized competitive Sips, and LDF implement directly readable name-keyed contracts in src; the RHS calls equilibrium once and then physical kinetic rates by adsorbate. Sorbent-specific competitive-Sips coefficients are supplied by the input document.",
+      "disposition": "extend only through the explicit registries, name-keyed contracts, and external parameter datasets",
+      "target_phases": [
+        3,
+        "5B",
+        8
+      ],
+      "owner": "equilibrium and kinetics contracts"
+    },
+    {
+      "id": "fixed_state_layout_in_physical_model",
+      "paths": [
+        "src/pydac/core/column_model.py",
+        "src/pydac/core/state_layout.py",
+        "src/pydac/utils/column/validation.py"
+      ],
+      "sites": [
+        "column-model layout/catalog setup",
+        "layout-driven reference/feed/initial/warm-start fields",
+        "column.validation warm-start shape and sorbent-inventory checks",
+        "layout-owned get_initial_state/pde_system_kpis/RHS buffers",
+        "generated simulation scalar declarations"
+      ],
+      "hardcoding": "StateLayout owns setup, closure reconstruction, field shapes, warm starts, inventories, solver packing, RHS decomposition/assembly, buffers, and per-adsorbate KPI scalar generation. The current-DAC layout remains only an explicit compatibility/test preset.",
+      "disposition": "retain StateLayout as the sole numerical packing owner",
+      "target_phases": [
+        2,
+        "5A",
+        "5B"
+      ],
+      "owner": "StateLayout plus supervised physical core",
+      "supervision_required": true
+    },
+    {
+      "id": "fixed_reference_and_mixture_equations",
+      "paths": [
+        "src/pydac/core/column_model.py"
+      ],
+      "sites": [
+        "_composition_from_named_inputs",
+        "set_reference_conditions/set_feed/set_ic_startup/set_ic_step",
+        "generic property and nondimensional arrays",
+        "declared-order RHS mixture/source expressions"
+      ],
+      "hardcoding": "Reference/feed/initial compositions, closure reconstruction, property arrays, gas and loading balances, adsorption heat, and energy accumulation all follow declared names and layout-generated fields. Current-DAC RH, dry-air, and reporting conveniences remain explicit outside numerical field ownership.",
+      "disposition": "governing equations use declared species; retain or guard the documented DAC input/reporting conveniences",
+      "target_phases": [
+        "5A",
+        "5B"
+      ],
+      "owner": "generic initialization and RHS",
+      "supervision_required": true
+    },
+    {
+      "id": "solver_state_offsets_and_export",
+      "paths": [
+        "src/pydac/core/solver.py"
+      ],
+      "sites": [
+        "layout scale mapping",
+        "layout-derived constraints/tolerances",
+        "name-based final extraction",
+        "layout-grouped dimensional export"
+      ],
+      "hardcoding": "Constraint slices, per-state tolerances, dimensionalization, final fields, and persisted field order are generated from StateLayout metadata; saved solutions include the layout document and signature.",
+      "disposition": "StateLayout generates solver/export metadata; post-processing consumes the persisted layout",
+      "target_phases": [
+        "5B"
+      ],
+      "owner": "generic solver/export"
+    },
+    {
+      "id": "sparsity_and_event_offsets",
+      "paths": [
+        "src/pydac/core/sparsity_patterns/analytical_sparsity.py",
+        "src/pydac/core/sparsity_patterns/numerical_sparsity.py",
+        "src/pydac/utils/solver/sparsity.py",
+        "src/pydac/utils/solver/events.py",
+        "src/pydac/utils/solver/pressure_plateau.py",
+        "src/pydac/utils/solver/oxygen_hot_bed_audit.py"
+      ],
+      "sites": [
+        "layout-derived analytical block map and sizes",
+        "layout-derived pde_size",
+        "event metric field slices",
+        "pressure and hot-bed named field extraction"
+      ],
+      "hardcoding": "Sparsity generation, pruning, events, pressure plateau, and hot-bed diagnostics consume StateLayout fields. New sparsity caches include the layout signature; legacy unsigned caches are accepted only for the exact current-DAC layout signature.",
+      "disposition": "retain the narrow signed compatibility rule for checked-in current-DAC masks",
+      "target_phases": [
+        2,
+        "5B"
+      ],
+      "owner": "StateLayout and solver utilities"
+    },
+    {
+      "id": "fixed_public_adsorption_configuration",
+      "paths": [
+        "src/pydac/inputs/defaults/adsorption.py",
+        "src/pydac/inputs/defaults/mixture.py",
+        "src/pydac/inputs/defaults/particle.py",
+        "src/pydac/inputs/defaults/reference.py",
+        "src/pydac/inputs/defaults/steps.py",
+        "src/pydac/config/schema.py"
+      ],
+      "sites": [
+        "named mixture and adsorption defaults",
+        "sorbent_defaults",
+        "reference_defaults",
+        "CO2-specific termination metrics",
+        "MixtureConfig/AdsorptionConfig/ReferenceConfig"
+      ],
+      "hardcoding": "Mixture and model selection are generic name-based declarations, and initialization consumes species-named reference/step fields when present. Current DAC heats, reference defaults, termination fields, and dry-air/RH compatibility inputs remain explicit.",
+      "disposition": "retain readable current-DAC defaults and their explicit RH/dry-air/termination conveniences; supply validation-specific material data separately, with DAC-only consumers guarded at their reporting boundaries",
+      "target_phases": [
+        4,
+        "5A",
+        7,
+        8
+      ],
+      "owner": "generic configuration"
+    },
+    {
+      "id": "fixed_simulation_context_schema",
+      "paths": [
+        "src/pydac/post_processing/context/simulation_context.py",
+        "src/pydac/utils/postprocessing/context_schema.py",
+        "src/pydac/utils/postprocessing/context_model.py",
+        "src/pydac/utils/postprocessing/normalization.py",
+        "src/pydac/utils/column/runtime_properties.py"
+      ],
+      "sites": [
+        "SPECIES tuple",
+        "per-species schema expansion",
+        "simulation_context_dataframe_from_model",
+        "SUPPORTED_SPECIES",
+        "column.runtime_properties declared-species record"
+      ],
+      "hardcoding": "The context schema expands per-species dispersion rows from the declared mixture and validates the same ordered species set across saved step blocks.",
+      "disposition": "runtime context and normalization are declaration-driven",
+      "target_phases": [
+        6
+      ],
+      "owner": "runtime context and resolved_runtime.json",
+      "supervision_required": true
+    },
+    {
+      "id": "fixed_step_field_extraction_and_profiles",
+      "paths": [
+        "src/pydac/post_processing/profiles/step_post_processing.py",
+        "src/pydac/post_processing/profiles/step_plotting.py",
+        "src/pydac/post_processing/profiles/cyclic_plotting.py",
+        "src/pydac/utils/css/profiles.py",
+        "src/pydac/utils/postprocessing/saved_solution.py"
+      ],
+      "sites": [
+        "StepPostProcessor._extract_fields lines 92-121",
+        "fixed plot field registries and mixture MW",
+        "CyclicSteadyStateProfiles._extract_outlet_profiles lines 354-461",
+        "CSS extract_final_fields/final_profiles"
+      ],
+      "hardcoding": "New saved solutions are decoded exclusively through persisted StateLayout names; the only positional compatibility branch recognizes the exact historical current-DAC storage counts.",
+      "disposition": "retain the narrow layout-less DAC fallback and explicit required-species guards",
+      "target_phases": [
+        6
+      ],
+      "owner": "generic post-processing",
+      "supervision_required": true
+    },
+    {
+      "id": "fixed_step_metrics_and_kpis",
+      "paths": [
+        "src/pydac/post_processing/metrics/step_metrics.py",
+        "src/pydac/post_processing/metrics/step_metrics_store.py",
+        "src/pydac/post_processing/kpi/cycle_kpis.py",
+        "src/pydac/post_processing/kpi/plotting.py",
+        "src/pydac/post_processing/kpi/reporting.py"
+      ],
+      "sites": [
+        "species-specific mass/energy metric ids",
+        "MOLECULAR_WEIGHTS",
+        "default species tuples",
+        "CO2 recovery/productivity and O2/N2 impurity KPIs"
+      ],
+      "hardcoding": "Mass records, mass tables, and basic plots follow declared species; product purity, H2O/CO2, CO2-specific energy/productivity, and impurity reporting intentionally encode DAC definitions.",
+      "disposition": "generic metrics remain declaration-driven, while DAC KPIs stay behind explicit required-species guards and are not part of the generic core",
+      "target_phases": [
+        6,
+        7
+      ],
+      "owner": "generic metrics plus guarded DAC KPI layer",
+      "supervision_required": true
+    },
+    {
+      "id": "optimization_and_workflow_dac_outputs",
+      "paths": [
+        "src/pydac/post_processing/optimization/nsga2_post_processing.py",
+        "runners/run_NSGA2.py",
+        "src/pydac/workflows/orchestrator_NSGA2.py",
+        "src/pydac/utils/nsga2/logging.py",
+        "src/pydac/api.py",
+        "src/pydac/cli.py"
+      ],
+      "sites": [
+        "CO2 productivity/work labels",
+        "O2 constraint/reporting",
+        "N2/O2 residual species tuple",
+        "api/cli CSS report runs the DAC O2 hot-bed audit"
+      ],
+      "hardcoding": "Optimization reporting is deliberately DAC-specific but currently lacks an explicit compatibility boundary.",
+      "disposition": "retain optimization/reporting as explicitly DAC-specific consumers of DAC objective columns and campaign artifacts; they do not define generic species layout or model selection",
+      "target_phases": [
+        6,
+        7
+      ],
+      "owner": "DAC optimization/reporting compatibility"
+    },
+    {
+      "id": "standalone_dac_thermodynamic_utilities",
+      "paths": [
+        "src/pydac/core/thermodynamics_separators.py",
+        "src/pydac/core/ternary_thermodynamics_separators.py"
+      ],
+      "sites": [
+        "Component construction and fixed CO2/H2O/O2 result keys"
+      ],
+      "hardcoding": "Flash utilities are explicitly binary/ternary DAC calculations and are not generic mixture infrastructure.",
+      "disposition": "retain standalone guarded DAC flash utilities; their binary/ternary critical-property and result-key definitions are not generic mixture infrastructure and have no current generic consumer",
+      "target_phases": [
+        7
+      ],
+      "owner": "stabilization audit"
+    },
+    {
+      "id": "mixture_requirements_of_steps_and_campaign_kpis",
+      "paths": [
+        "src/pydac/utils/run/validation.py",
+        "src/pydac/utils/nsga2/evaluation.py",
+        "src/pydac/utils/tvsa/termination.py"
+      ],
+      "sites": [
+        "validate_steps_against_mixture (steam steps need H2O, collected steps need CO2)",
+        "EVENT_METRIC_REQUIREMENTS (the O2 metric needs O2, the CO2-loading metric needs CO2 adsorbed; checked for event-mode steps)",
+        "candidate KPI adapter: T_steam_condensation NaN without H2O"
+      ],
+      "hardcoding": "Steam steps inject H2O and a collected step reports CO2 product, so the run preflight names these two species; the NSGA-II KPI adapter names the steam-condensation limit, which a mixture without H2O does not have.",
+      "disposition": "retain: physical requirements of named steps, checked before a run writes anything",
+      "target_phases": [
+        6
+      ],
+      "owner": "run preflight and NSGA-II candidate KPIs"
+    }
+  ],
+  "coverage_rule": "Every Python file matching an audit pattern must appear in at least one inventory entry; new matches fail the inventory test until classified."
+}

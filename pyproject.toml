@@ -1,0 +1,109 @@
+# pyDAC build metadata.
+
+[build-system]
+requires = ["hatchling>=1.27", "hatch-fancy-pypi-readme>=24.1"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pydac3"
+dynamic = ["version", "readme"]
+description = "Simulation of adsorption-based direct air capture processes."
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Mattia Galanti"},
+    {name = "Ivo Roghair"},
+    {name = "Martin van Sint Annaland"},
+]
+maintainers = [
+    {name = "Mattia Galanti", email = "mattiagalanti1@gmail.com"},
+]
+keywords = ["direct air capture", "adsorption", "TVSA", "cyclic adsorption", "packed bed", "process simulation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "numpy>=1.26.4",
+    "scipy>=1.13.1",
+    "pandas>=2.2,<3",
+    # Exact: the discretization core; pyDAC calls pymrm internals whose code changed after
+    # 2.1.10. Raised only by a requalified release decision.
+    "pymrm==2.1.10",
+    # SUNDIALS inside: patch updates only; a minor update needs requalification.
+    "scikit-sundae>=1.1,<1.2",
+    # 3.8.0 crashes in the KPI bar figure (seen by the CI floor job).
+    "matplotlib>=3.8.1",
+    "seaborn>=0.13",
+    # NSGA-II is included in the base installation.
+    "pymoo>=0.6.2",
+]
+
+[project.optional-dependencies]
+completion = ["argcomplete"]
+all = ["pydac3[completion]"]
+
+[project.scripts]
+pydac = "pydac.cli:main"
+
+[project.urls]
+Repository = "https://github.com/process-intensification-lab/pyDAC"
+Issues = "https://github.com/process-intensification-lab/pyDAC/issues"
+
+[dependency-groups]
+test = ["pytest>=8"]
+
+[tool.hatch.version]
+path = "src/pydac/utils/version.py"
+
+# The PyPI page is README.md with its relative links pointing to the release on GitHub
+# (on pypi.org they would be dead). The repository and the starter kit keep README.md as it is.
+# Bump the tag with the version: tests/test_starter_kit.py checks it.
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?!https?:|mailto:|#)([^)\s]+)\)'
+replacement = '](https://github.com/process-intensification-lab/pyDAC/blob/v3.0.0/\1)'
+
+[tool.hatch.build.targets.wheel]
+# The package, plus the starter kit that `pydac get-started FOLDER` copies (pydac/_kit, repository
+# layout). The kit is what a user needs to USE pyDAC: no manual, no tests.
+only-include = ["src/pydac", "docs/guide", "examples"]
+exclude = ["**/simulation_results", "**/output_cases", "**/.ipynb_checkpoints", "**/__pycache__"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src/pydac" = "pydac"
+"docs/guide" = "pydac/_kit/docs/guide"
+"examples" = "pydac/_kit/examples"
+
+# Single files: `sources` renames folders only.
+[tool.hatch.build.targets.wheel.force-include]
+"README.md" = "pydac/_kit/README.md"
+"LICENSE" = "pydac/_kit/LICENSE"
+"CITATION.cff" = "pydac/_kit/CITATION.cff"
+
+[tool.hatch.build.targets.sdist]
+# The sdist is the public repository, as an explicit list: built by mistake from a
+# development checkout it still cannot take private development files.
+only-include = ["src/pydac", "tests", "runners", "docs", "examples", "ci", "README.md", "LICENSE",
+                "CITATION.cff", "CONTRIBUTING.md"]
+# docs/ is public except the development roadmaps and internal reports.
+exclude = ["docs/development", "docs/reports"]
+
+[tool.pytest.ini_options]
+markers = [
+    "qualification: holds only in the qualification environment (fingerprint baselines); other CI jobs run -m 'not qualification'",
+]

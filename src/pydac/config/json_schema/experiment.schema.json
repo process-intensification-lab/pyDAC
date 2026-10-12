@@ -1,0 +1,1019 @@
+{
+  "$defs": {
+    "cycle": {
+      "additionalProperties": false,
+      "properties": {
+        "steps": {
+          "additionalProperties": false,
+          "properties": {
+            "ads": {
+              "$ref": "#/$defs/step"
+            },
+            "blow": {
+              "$ref": "#/$defs/step"
+            },
+            "cool": {
+              "$ref": "#/$defs/step"
+            },
+            "heat": {
+              "$ref": "#/$defs/step"
+            },
+            "press": {
+              "$ref": "#/$defs/step"
+            },
+            "s_des": {
+              "$ref": "#/$defs/step"
+            },
+            "s_purge": {
+              "$ref": "#/$defs/step"
+            },
+            "startup": {
+              "$ref": "#/$defs/step"
+            },
+            "w_des": {
+              "$ref": "#/$defs/step"
+            },
+            "w_purge": {
+              "$ref": "#/$defs/step"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "execution": {
+      "additionalProperties": false,
+      "properties": {
+        "compute_numerical_sparsity": {
+          "type": "boolean"
+        },
+        "css_probe_step": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "css_tolerance": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "cvode_sparsity_mode": {
+          "enum": [
+            "pde_only",
+            "full"
+          ]
+        },
+        "cycle_options": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "cycle_steps": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extra_tag": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generate_kpi_outputs": {
+          "type": "boolean"
+        },
+        "keep_only_final_cycle": {
+          "type": "boolean"
+        },
+        "max_cycles": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "output_root": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "plot_cyclic_profiles": {
+          "type": "boolean"
+        },
+        "plot_final_cycle_profiles": {
+          "type": "boolean"
+        },
+        "plot_format": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "plot_profiles": {
+          "type": "boolean"
+        },
+        "print_cycle_build": {
+          "type": "boolean"
+        },
+        "print_to_terminal": {
+          "type": "boolean"
+        },
+        "require_css": {
+          "type": "boolean"
+        },
+        "resume_from_cycle": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "solve": {
+          "type": "boolean"
+        },
+        "step_options": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "termination_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "time",
+                "event"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "use_sparsity": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "simulation": {
+      "additionalProperties": false,
+      "properties": {
+        "adsorption": {
+          "additionalProperties": false,
+          "properties": {
+            "equilibrium_systems": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "datasets": {
+                    "additionalProperties": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "type": "object"
+                  },
+                  "parameters": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "datasets",
+                  "parameters"
+                ],
+                "type": "object"
+              },
+              "description": "Equilibrium systems keyed by explicit registry model name.",
+              "minProperties": 1,
+              "type": "object"
+            },
+            "kinetics": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "model": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "parameters": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "model",
+                  "parameters"
+                ],
+                "type": "object"
+              },
+              "description": "One kinetic model per adsorbate, keyed by species name.",
+              "minProperties": 1,
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "bed": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "architecture": {
+                  "enum": [
+                    "packed_bed"
+                  ]
+                },
+                "design": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "material": {
+                  "type": "null"
+                }
+              },
+              "type": "object"
+            },
+            {
+              "enum": [
+                "packed_bed_default"
+              ],
+              "type": "string"
+            }
+          ]
+        },
+        "cycle": {
+          "$ref": "#/$defs/cycle"
+        },
+        "geometry": {
+          "additionalProperties": false,
+          "properties": {
+            "aspect_ratio": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Length over diameter, L/D; an input with specified_by=volume_aspect_ratio."
+            },
+            "length_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bed length; an input with specified_by=length_radius."
+            },
+            "radius_m": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bed radius; an input with specified_by=length_radius."
+            },
+            "specified_by": {
+              "description": "Which pair gives the column size: volume_m3 and aspect_ratio, or length_m and radius_m. The other pair is computed; leave it null.",
+              "enum": [
+                "volume_aspect_ratio",
+                "length_radius"
+              ]
+            },
+            "volume_m3": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Bed volume; an input with specified_by=volume_aspect_ratio."
+            }
+          },
+          "type": "object"
+        },
+        "grid": {
+          "additionalProperties": false,
+          "properties": {
+            "nr": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "nr_plot_2d": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "nt": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "nz": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "mixture": {
+          "additionalProperties": false,
+          "properties": {
+            "adsorbates": {
+              "description": "Ordered adsorbing subset of the gas mixture.",
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "closure_species": {
+              "description": "Species reconstructed by concentration closure.",
+              "minLength": 1,
+              "type": "string"
+            },
+            "species": {
+              "description": "Ordered gas species. Molecular constants come from the species catalog.",
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 2,
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "type": "object"
+        },
+        "reference": {
+          "additionalProperties": false,
+          "properties": {
+            "co2_mole_fraction": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "pressure_Pa": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "relative_humidity": {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            "temperature_K": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "velocity_m_s": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "solver": {
+          "additionalProperties": false,
+          "properties": {
+            "atol": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "atol_scalar_energy": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "atol_scalar_mass": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "rtol": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "sorbent": {
+          "additionalProperties": false,
+          "properties": {
+            "conductivity_W_mK": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "density_kg_m3": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "fixed_adsorbates": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "heat_capacity_J_molK": {
+                    "exclusiveMinimum": 0,
+                    "type": "number"
+                  },
+                  "loading_mol_per_kg": {
+                    "minimum": 0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "loading_mol_per_kg",
+                  "heat_capacity_J_molK"
+                ],
+                "type": "object"
+              },
+              "description": "Non-exchanging loadings keyed by species (any case: n2 = N2): they add heat capacity to the solid and take no part in the mass balance.",
+              "type": "object"
+            },
+            "heat_capacity": {
+              "additionalProperties": false,
+              "description": "Solid heat capacity: `Low2023` (a_J_K_per_kg, b_J_per_kgK2, c_J_per_kgK; evaluated at the step feed temperature) or `constant` (value_J_kgK).",
+              "properties": {
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "parameters": {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                }
+              },
+              "required": [
+                "model",
+                "parameters"
+              ],
+              "type": "object"
+            },
+            "heats_of_adsorption_J_mol": {
+              "additionalProperties": {
+                "type": "number"
+              },
+              "description": "Heat of adsorption [J/mol] of each adsorbate, keyed by species name (any case: co2 = CO2); negative (exothermic); every species of mixture.adsorbates needs one, others are ignored.",
+              "minProperties": 1,
+              "type": "object"
+            },
+            "particle_radius_m": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "pore_radius_m": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "porosity": {
+              "exclusiveMaximum": 1,
+              "exclusiveMinimum": 0,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "wall": {
+          "additionalProperties": false,
+          "properties": {
+            "bed_wall_htc_override_W_m2K": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "conductivity_W_mK": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "density_kg_m3": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "overall_htc_override_W_m2K": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "specific_heat_J_kgK": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            "thickness_m": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "step": {
+      "additionalProperties": false,
+      "properties": {
+        "composition": {
+          "additionalProperties": false,
+          "properties": {
+            "co2_feed_mole_fraction": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "co2_initial_mole_fraction": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "initial_relative_humidity": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "initial_solid_loadings_mol_per_kg": {
+              "anyOf": [
+                {
+                  "additionalProperties": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "minProperties": 1,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Initial solid loading [mol/kg] of each adsorbate, keyed by species name (any case: co2 = CO2), the same in the whole bed; every species of mixture.adsorbates needs its own value, others are refused; startup only. null equilibrates the solid with the initial gas."
+            },
+            "n2_feed_mole_fraction": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "n2_initial_mole_fraction": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "o2_feed_mole_fraction": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "o2_initial_mole_fraction": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "relative_humidity": {
+              "anyOf": [
+                {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "flow": {
+          "additionalProperties": false,
+          "properties": {
+            "blowdown_valve_conductance": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Valve conductance alpha [1/m] of the outlet relation dp/dn = alpha (p_set - p), n the outward normal; null is an ideal valve."
+            },
+            "pressurization_valve_conductance": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Valve conductance alpha [1/m] of the inlet relation dp/dn = alpha (p_set - p), n the outward normal; null is an ideal valve."
+            },
+            "steam_mass_flow_kg_s": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "volumetric_flow_m3_s": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "horizon": {
+          "additionalProperties": false,
+          "properties": {
+            "event_max_time_s": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "nominal_time_s": {
+              "exclusiveMinimum": 0,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "outlet": {
+          "additionalProperties": false,
+          "properties": {
+            "collect_product": {
+              "description": "Send the step outlet to the product line (condenser, vacuum pump, vacuum-discharge flash); false vents it.",
+              "type": "boolean"
+            },
+            "condenser": {
+              "description": "Put a condenser before the vacuum pump of a collected step.",
+              "type": "boolean"
+            },
+            "condenser_temperature_K": {
+              "description": "Temperature the condenser cools the collected stream to.",
+              "exclusiveMinimum": 0,
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "pressure": {
+          "additionalProperties": false,
+          "properties": {
+            "ambient_pressure_Pa": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "feed_pressure_Pa": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "initial_pressure_Pa": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "outlet_pressure_Pa": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "termination": {
+          "additionalProperties": false,
+          "properties": {
+            "direction": {
+              "enum": [
+                "above",
+                "below"
+              ]
+            },
+            "label": {
+              "anyOf": [
+                {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "low_pressure_stop_Pa": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "metric": {
+              "enum": [
+                "avg_outlet_pressure",
+                "max_internal_pressure",
+                "min_internal_pressure",
+                "avg_outlet_temperature",
+                "max_bed_temperature",
+                "min_bed_temperature",
+                "max_bed_oxygen_mole_fraction",
+                "avg_bed_loading_fraction_CO2"
+              ]
+            },
+            "mode": {
+              "enum": [
+                "time",
+                "event"
+              ]
+            },
+            "pressure_plateau_arm_above_Pa": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pressure_plateau_arm_below_Pa": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "pressure_plateau_rate_tolerance_nd": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stop_on_low_pressure": {
+              "type": "boolean"
+            },
+            "stop_on_pressure_plateau": {
+              "type": "boolean"
+            },
+            "threshold_offset": {
+              "type": "number"
+            },
+            "threshold_source": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "p_out",
+                    "p_feed",
+                    "T_cond"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "threshold_value": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "thermal": {
+          "additionalProperties": false,
+          "properties": {
+            "ambient_temperature_K": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "external_htc_W_m2K": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "feed_temperature_K": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "initial_temperature_K": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "jacket_temperature_K": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "$id": "https://raw.githubusercontent.com/process-intensification-lab/pyDAC/v3.0.0/src/pydac/config/json_schema/experiment.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Public pyDAC input. Fields are optional in development presets; frozen-case completeness is enforced by inputs.case_io.",
+  "properties": {
+    "execution": {
+      "$ref": "#/$defs/execution"
+    },
+    "schema_version": {
+      "const": 8
+    },
+    "simulation": {
+      "$ref": "#/$defs/simulation"
+    }
+  },
+  "title": "pyDAC experiment configuration",
+  "type": "object"
+}

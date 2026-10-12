@@ -1,0 +1,34 @@
+{
+  "sorbent": {
+    "density_kg_m3": 61.0,
+    "porosity": 0.9616,
+    "particle_radius_m": 0.00375,
+    "heat_capacity": {"model": "constant", "parameters": {"value_J_kgK": 2070.0}},
+    "heats_of_adsorption_J_mol": {"CO2": -57000.0, "H2O": -49000.0}
+  },
+  "adsorption": {
+    "equilibrium_systems": {
+      "ModifiedTothGAB": {
+        "datasets": {},
+        "parameters": {
+          "T0_K": 296.0,
+          "ns0_mol_per_kg": 2.38,
+          "b0_inverse_Pa": 0.07074,
+          "t0": 0.4148,
+          "dH0_J_per_mol": -57047.0,
+          "alpha": -1.606,
+          "chi": 0.0,
+          "gamma_kg_per_mol": 0.0061,
+          "beta_kg_per_mol": 28.907,
+          "cG": 0.1489,
+          "K_ads": 0.5751,
+          "cm_mol_per_kg": 36.48
+        }
+      }
+    },
+    "kinetics": {
+      "CO2": {"model": "LDF", "parameters": {"k_LDF_s_inv": 0.0002}},
+      "H2O": {"model": "LDF", "parameters": {"k_LDF_s_inv": 0.002}}
+    }
+  }
+}
