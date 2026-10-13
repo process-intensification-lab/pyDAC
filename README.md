@@ -16,7 +16,7 @@ indicators (KPIs) and optimizes operating conditions with the NSGA-II genetic al
 
 pyDAC 3.0.1, development status Beta. MIT license.
 
-https://github.com/user-attachments/assets/2b48d286-5dbf-47e5-9e34-8884ac18ffee
+https://github.com/user-attachments/assets/f4d22a1e-f433-4951-8c69-6b3d187ffb53
 
 ## Installation
 
