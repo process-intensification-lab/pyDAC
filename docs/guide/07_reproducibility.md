@@ -80,7 +80,7 @@ Abridged, from the run above (installed from a package):
     "relocated_fields": ["execution.output_root"]
   },
   "software": {
-    "version": "3.0.0",
+    "version": "3.0.1",
     "python": {"implementation": "CPython", "version": "3.12.2"},
     "dependencies": {"numpy": {"version": "2.5.3"}, "scipy": {"version": "1.18.1"}, "pymoo": {"version": "0.6.2"}},
     "native_libraries": {"sundials_version": "7.5.0"},

@@ -9,7 +9,7 @@ temperature-vacuum swing adsorption (TVSA) cycle. pyDAC reports process key perf
 indicators (KPIs) and optimizes operating conditions with the NSGA-II genetic algorithm
 (non-dominated sorting genetic algorithm II).
 
-pyDAC 3.0.0, development status Beta. MIT license.
+pyDAC 3.0.1, development status Beta. MIT license.
 
 ## Installation
 
@@ -127,7 +127,7 @@ tutorial 07 needs Python, because it registers its own isotherm.
 | [03 A cycle at its periodic state](examples/notebooks/03_css_tvsa.ipynb) | a CSS run of the built-in TVSA cycle in 2D, the cycle KPIs, where the CO2 and the energy go |
 | [04 1D or 2D](examples/notebooks/04_1d_vs_2d.ipynb) | the same cycle in 1D, in 2D and in 2D with wall channeling |
 | [05 An optimization campaign](examples/notebooks/05_nsga2_trial.ipynb) | a trial NSGA-II campaign: variables, bounds, constraints, the Pareto front |
-| [06 Reproduce the breakthrough validation](examples/notebooks/06_breakthrough_validation.ipynb) | the 2D model of the pyDAC paper against the measurements of Zanco et al. |
+| [06 Reproduce the breakthrough validation](examples/notebooks/06_breakthrough_validation.ipynb) | the 2D model of the [pyDAC paper](https://doi.org/10.26434/chemrxiv.15010382/v1) against the measurements of Zanco et al. |
 | [07 Your own isotherm](examples/notebooks/07_new_isotherm.ipynb) | a new sorbent from the literature, its isotherm registered from Python and run |
 
 ## Quick start from the terminal
@@ -247,9 +247,15 @@ To work on pyDAC itself, read [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## How to cite
 
-If you use pyDAC in your research, please cite it with the metadata in
-[`CITATION.cff`](CITATION.cff). Each GitHub release has its own DOI on Zenodo; once the
-pyDAC paper is published, it becomes the preferred citation.
+If you use pyDAC in your research, please cite the pyDAC paper, available as a preprint on
+ChemRxiv:
+
+> M. Galanti, I. Roghair, M. van Sint Annaland. pyDAC: Open-Source two-dimensional modeling of s-TVSA for direct air capture: experimental assessment and validity of one-dimensional approximations.
+> ChemRxiv (2026). [doi:10.26434/chemrxiv.15010382/v1](https://doi.org/10.26434/chemrxiv.15010382/v1)
+
+and the software itself with the metadata in [`CITATION.cff`](CITATION.cff). Each GitHub release
+has its own DOI on Zenodo; [10.5281/zenodo.23319859](https://doi.org/10.5281/zenodo.23319859)
+always resolves to the latest version.
 
 ## License and authors
 

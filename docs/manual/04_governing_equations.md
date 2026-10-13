@@ -74,7 +74,7 @@ gas or solid factor.
 | λ̄_ax, λ̄_rad | `inv_Pe_h_ax`, `inv_Pe_h_rad` | λ_ax / (v⁰ L_b), λ_rad / (v⁰ R_b) |
 | ω_wall | `omega_wall` | (4/d_b) τ_H h_int — see §5.2 |
 
-As in the paper (SI, scaled energy equation), the energy equation is made dimensionless in
+As in the pyDAC [paper](https://doi.org/10.26434/chemrxiv.15010382/v1) (SI, scaled energy equation), the energy equation is made dimensionless in
 its independent variables and in temperature only: ⟨ρc_p⟩_eff, Ω_a, ω_p, λ̄_ax, λ̄_rad and
 ω_wall keep units J/(m³ K) and are not normalised by a reference heat capacity. The code
 attribute names `inv_Pe_h_*` are historical.
@@ -140,7 +140,7 @@ Defaults live in [`src/pydac/inputs/defaults/reference.py`](../../src/pydac/inpu
 
 The temperature scale $T^0$ above is distinct from the thermodynamic datum
 used for sensible enthalpy. pyDAC uses the fixed datum
-$T_{h,\mathrm{ref}}=298.15\ \mathrm{K}$; as in the paper, their ratio is
+$T_{h,\mathrm{ref}}=298.15\ \mathrm{K}$; as in the pyDAC [paper](https://doi.org/10.26434/chemrxiv.15010382/v1), their ratio is
 $\theta=T_{h,\mathrm{ref}}/T^0$, so the sensible temperature is
 $\widetilde T-\theta=(T-T_{h,\mathrm{ref}})/T^0$ (`theta_bed` in the code).
 The temperature state itself remains the absolute ratio $\widetilde T=T/T^0$.
@@ -169,7 +169,7 @@ step (`blow`, `heat`, `cool`) `u_inlet` is zero while `u_ref` stays finite.
 
 In 2D the bed-wall coupling uses the
 **radial boundary condition of the bed energy equation** at r = R_b — the Robin
-condition of the paper (SI, "Initial and Boundary conditions"), with the inverse wall Biot number
+condition of the pyDAC [paper](https://doi.org/10.26434/chemrxiv.15010382/v1) (SI, "Initial and Boundary conditions"), with the inverse wall Biot number
 `inv_Bi_h = λ_rad / (h_w R_b)`
 ([`_resolve_packed_bed_thermal_transport()`](../../src/pydac/core/column_model.py); applied in [`pde_system_kpis()`](../../src/pydac/core/column_model.py), stage 5):
 
@@ -187,7 +187,7 @@ energy-conserving.
 ### 5.2 Bed↔wall coupling in 1D
 
 In 1D radial conduction is switched off and the coupling becomes the **explicit
-volumetric source** of the paper (main text, bed-to-wall coupling of the energy balance;
+volumetric source** of the pyDAC [paper](https://doi.org/10.26434/chemrxiv.15010382/v1) (main text, bed-to-wall coupling of the energy balance;
 SI, "Initial and Boundary conditions")
 ([`calc_nondim_pde_params()`](../../src/pydac/core/column_model.py) and
 [`pde_system_kpis()`](../../src/pydac/core/column_model.py), stage 5):
@@ -196,7 +196,7 @@ $$\mathcal{S}_\text{wall} = \omega_\text{wall}\,(\tilde T_w - \tilde T), \qquad 
 
 **The transfer coefficient is not h_in.** In 1D the radial bed profile is
 lumped, so `h_int` is the **Dixon (1996) overall wall-to-bed coefficient**
-U_w of the paper (main text)
+U_w of the pyDAC [paper](https://doi.org/10.26434/chemrxiv.15010382/v1) (main text)
 ([`dixon_overall_coefficient()`](../../src/pydac/core/bed_architectures/packed_bed.py)).
 Selection is in
 [`_resolve_packed_bed_thermal_transport()`](../../src/pydac/core/column_model.py) —
@@ -296,7 +296,7 @@ $$
 $$
 
 In the wall-channeling mode ε_t and ρ_b are ring-wise coefficients, and so are Ω_a and
-ω_p built from them; the form of the three terms is unchanged (paper SI, "Local
+ω_p built from them; the form of the three terms is unchanged (pyDAC [paper](https://doi.org/10.26434/chemrxiv.15010382/v1), SI, "Local
 coefficients"). The code keeps the mean-based groups and multiplies them by the local
 factors: `source_q` and the loading part of `source_extra` by the solid factor
 (`_solid_cell`), `source_p` and the gas part of `source_extra` by the gas factor
@@ -311,7 +311,7 @@ reference ratios and reusable work buffers in
 
 ### Naming note: `source_p` is the compressibility term
 
-`source_p` is the compressibility contribution of the paper (main text, table of the bed
+`source_p` is the compressibility contribution of the pyDAC [paper](https://doi.org/10.26434/chemrxiv.15010382/v1) (main text, table of the bed
 energy source terms), $\mathcal{S}_\mathrm{p}=\varepsilon_t R_g T\,\partial c_\text{tot}/\partial t$,
 scaled as $\omega_p\widetilde T\,\partial\widetilde c_\text{tot}/\partial\tau$ (SI, "Final
 scaled energy equation"). It comes from the time derivative of p = c_tot R_g T on the

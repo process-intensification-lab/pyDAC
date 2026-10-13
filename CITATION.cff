@@ -1,5 +1,5 @@
-# Citation metadata. At each GitHub release Zenodo adds the DOI and the release date;
-# the paper becomes `preferred-citation` once it is published.
+# Citation metadata. At each GitHub release Zenodo adds the DOI and the release date.
+# The pyDAC paper is in `references` (a ChemRxiv preprint for now).
 cff-version: 1.2.0
 message: "If you use pyDAC in your research, please cite it as below."
 title: "pyDAC: simulation of adsorption-based direct air capture processes"
@@ -10,10 +10,9 @@ authors:
   - given-names: Ivo
     family-names: Roghair
   - given-names: Martin
-    name-particle: van
-    family-names: Sint Annaland
+    family-names: van Sint Annaland
 license: MIT
-version: 3.0.0
+version: 3.0.1
 repository-code: "https://github.com/process-intensification-lab/pyDAC"
 keywords:
   - direct air capture
@@ -27,3 +26,18 @@ abstract: >-
   steam-assisted temperature-vacuum swing adsorption, TVSA, cycle) for CO2 direct air capture
   in 1D and 2D packed beds: single step sequences, cycles to cyclic steady state with KPIs, and
   local NSGA-II optimization of the operating conditions.
+references:
+  - type: article
+    status: preprint
+    title: "pyDAC: Open-Source two-dimensional modeling of s-TVSA for direct air capture: experimental assessment and validity of one-dimensional approximations"
+    authors:
+      - given-names: Mattia
+        family-names: Galanti
+      - given-names: Ivo
+        family-names: Roghair
+      - given-names: Martin
+        family-names: van Sint Annaland
+    journal: ChemRxiv
+    year: 2026
+    doi: 10.26434/chemrxiv.15010382/v1
+    url: "https://doi.org/10.26434/chemrxiv.15010382/v1"

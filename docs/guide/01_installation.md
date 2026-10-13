@@ -78,7 +78,7 @@ Activate the environment again in every new terminal before you use pyDAC.
 python -m pip install pydac3
 ```
 
-Until pyDAC 3.0.0 is on PyPI, install it from a clone of the repository:
+Or install it from a clone of the repository:
 
 ```bash
 git clone https://github.com/process-intensification-lab/pyDAC.git

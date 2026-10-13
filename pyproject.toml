@@ -76,7 +76,7 @@ path = "README.md"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = '\]\((?!https?:|mailto:|#)([^)\s]+)\)'
-replacement = '](https://github.com/process-intensification-lab/pyDAC/blob/v3.0.0/\1)'
+replacement = '](https://github.com/process-intensification-lab/pyDAC/blob/v3.0.1/\1)'
 
 [tool.hatch.build.targets.wheel]
 # The package, plus the starter kit that `pydac get-started FOLDER` copies (pydac/_kit, repository

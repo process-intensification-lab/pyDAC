@@ -35,7 +35,7 @@ Digitisation method and reading uncertainty:
 Some late temperature readings lie below the nominal 298.15 K jacket temperature. They are
 kept as read, not offset or clipped.
 
-Only the four traces compared in the pyDAC paper are included. The source
+Only the four traces compared in the [pyDAC paper](https://doi.org/10.26434/chemrxiv.15010382/v1) are included. The source
 `n2.csv` is exactly `1 - y_CO2` at identical sample times, so a nitrogen overlay can be derived
 without treating it as a second independent measurement. An outlet-temperature trace
 was also digitised but is not part of that comparison and is not included.
