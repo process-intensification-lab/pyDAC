@@ -1,0 +1,52 @@
+name: Bug report
+description: pyDAC fails, crashes or gives a result you think is wrong.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: >-
+        The smallest command or Python snippet that shows the problem, with the case it
+        runs (a preset name, or the case JSON attached or pasted).
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output or traceback
+      description: The full error message, or the numbers that look wrong.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: pyDAC version
+      description: The output of `pydac --version`.
+      placeholder: pydac 3.0.1
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How pyDAC is installed
+      options:
+        - python -m pip install pydac3
+        - clone, light environment (editable install)
+        - clone, exact environment (qualification lock)
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and Python version
+      placeholder: Ubuntu 24.04, Python 3.12
+    validations:
+      required: true

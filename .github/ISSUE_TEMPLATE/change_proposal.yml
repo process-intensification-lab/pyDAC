@@ -1,0 +1,35 @@
+name: Change proposal
+description: Propose a new feature or a change, before writing the code.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Open this issue before the code for anything beyond a small fix (see
+        [CONTRIBUTING.md](https://github.com/process-intensification-lab/pyDAC/blob/main/CONTRIBUTING.md#proposing-a-change)).
+  - type: textarea
+    id: what
+    attributes:
+      label: What you want to change
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The problem it solves or what it lets you do.
+    validations:
+      required: true
+  - type: checkboxes
+    id: core
+    attributes:
+      label: Physics core
+      options:
+        - label: >-
+            The change touches `src/pydac/core/column_model.py` or `src/pydac/post_processing/`:
+            I describe below the physical or numerical reasoning and the expected effect on results.
+  - type: textarea
+    id: effect
+    attributes:
+      label: Expected effect on results
+      description: Which outputs move, and on which cases you would compare them.
