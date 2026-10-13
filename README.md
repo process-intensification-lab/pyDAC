@@ -1,4 +1,9 @@
-# pyDAC
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/pydac_header_dark.svg">
+    <img alt="pyDAC" src="docs/assets/pydac_header_light.svg" width="420">
+  </picture>
+</p>
 
 pyDAC simulates adsorption-based direct air capture (DAC) processes. It solves the
 coupled mass, energy and momentum balances of a sorbent column in 1D or 2D
@@ -10,6 +15,8 @@ indicators (KPIs) and optimizes operating conditions with the NSGA-II genetic al
 (non-dominated sorting genetic algorithm II).
 
 pyDAC 3.0.1, development status Beta. MIT license.
+
+https://github.com/user-attachments/assets/2b48d286-5dbf-47e5-9e34-8884ac18ffee
 
 ## Installation
 
