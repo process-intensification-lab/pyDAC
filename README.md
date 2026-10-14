@@ -6,6 +6,7 @@
   <a href="https://pypi.org/project/pydac3/"><img alt="PyPI" src="https://img.shields.io/pypi/v/pydac3"></a>
   <a href="https://pypi.org/project/pydac3/"><img alt="Python versions" src="https://img.shields.io/pypi/pyversions/pydac3"></a>
   <a href="https://github.com/process-intensification-lab/pyDAC/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/process-intensification-lab/pyDAC/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://pepy.tech/projects/pydac3"><img alt="Downloads" src="https://img.shields.io/pepy/dt/pydac3"></a>
   <a href="https://doi.org/10.5281/zenodo.23319859"><img alt="DOI" src="https://zenodo.org/badge/DOI/10.5281/zenodo.23319859.svg"></a>
 </p>
 
