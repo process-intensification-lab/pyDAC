@@ -7,10 +7,16 @@ type: software
 authors:
   - given-names: Mattia
     family-names: Galanti
+    affiliation: "Eindhoven University of Technology"
+    orcid: "https://orcid.org/0009-0004-9552-7063"
   - given-names: Ivo
     family-names: Roghair
+    affiliation: "Eindhoven University of Technology"
+    orcid: "https://orcid.org/0000-0002-7221-5567"
   - given-names: Martin
     family-names: van Sint Annaland
+    affiliation: "Eindhoven University of Technology"
+    orcid: "https://orcid.org/0000-0002-2903-7443"
 license: MIT
 version: 3.0.1
 repository-code: "https://github.com/process-intensification-lab/pyDAC"
