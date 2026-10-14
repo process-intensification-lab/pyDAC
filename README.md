@@ -21,6 +21,13 @@ indicators (KPIs) and optimizes operating conditions with the NSGA-II genetic al
 
 pyDAC 3.0.1, development status Beta. MIT license.
 
+> **Using pyDAC? Make sure you always run the latest version.** pyDAC is under active
+> development and new releases come out often. To be notified when a new version
+> is available, please click **Watch → Custom → Releases** on the
+> [GitHub page](https://github.com/process-intensification-lab/pyDAC).
+> To update, run `python -m pip install --upgrade pydac3` in the pyDAC environment
+> (see [Update or remove](docs/guide/01_installation.md#update-or-remove)).
+
 https://github.com/user-attachments/assets/b471d7f8-2b83-4b18-a132-149970f4f62b
 
 ## Installation
