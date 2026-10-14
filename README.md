@@ -96,6 +96,8 @@ cd pyDAC
 python -m pip install -e .
 ```
 
+This takes the newest dependency versions that pyDAC allows, as `pip install pydac3` does.
+For the pinned versions of the release, see [Exact reproduction](#exact-reproduction).
 [`CONTRIBUTING.md`](CONTRIBUTING.md) gives the full procedure (dedicated environment, light or
 exact dependencies, tests) and how to propose a change.
 
@@ -129,6 +131,10 @@ source pydac-exact/bin/activate
 python -m pip install --require-hashes -r ci/qualification-lock-py3.12.txt
 python -m pip install --no-deps .
 ```
+
+The last line installs a fixed copy of the clone, as `pip install pydac3` does: later edits in
+`src/pydac/` are not used. To change pyDAC on the exact environment, install it in editable mode
+instead, with `python -m pip install --no-deps -e .`.
 
 ## Tutorials
 
