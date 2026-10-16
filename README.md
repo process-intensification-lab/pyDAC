@@ -123,7 +123,7 @@ Python on purpose. `import pydac` never prints it.
 
 To reproduce the qualified environment exactly (every package pinned, with hashes;
 Python 3.12), install from the lock file into a second fresh environment, from the
-root of a clone. Linux, with `venv`:
+root of a clone. One lock file serves Linux and Windows. Linux, with `venv`:
 
 ```bash
 python3.12 -m venv pydac-exact
@@ -136,10 +136,14 @@ The last line installs a fixed copy of the clone, as `pip install pydac3` does: 
 `src/pydac/` are not used. To change pyDAC on the exact environment, install it in editable mode
 instead, with `python -m pip install --no-deps -e .`.
 
-**Windows:** the lock is currently written for Linux only: it does not hold the packages
-that only Windows needs, so `pip` stops with a missing-hash error. On Windows, use the
-normal installation above, or run these commands inside
-[WSL 2](https://learn.microsoft.com/windows/wsl/install) (Linux on Windows).
+Windows, in PowerShell, with the `py` launcher (the same lock file):
+
+```powershell
+py -3.12 -m venv pydac-exact
+pydac-exact\Scripts\Activate.ps1
+python -m pip install --require-hashes -r ci/qualification-lock-py3.12.txt
+python -m pip install --no-deps .
+```
 
 ## Tutorials
 

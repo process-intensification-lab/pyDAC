@@ -98,10 +98,13 @@ The package ranges pyDAC declares (`numpy`, `scipy`, `pandas`, `pymoo` and the o
 `pyproject.toml`) are the versions it accepts. Different versions in that range can change
 results in the last digits. The qualification lock `ci/qualification-lock-py3.12.txt` is the
 environment that produced the qualified results: CPython 3.12, every package at one exact
-version with its hash. It changes only by a declared decision of the maintainers. To
-reproduce a published number exactly, install from the lock
-([Installation](01_installation.md#exact-reproduction)) and compare the provenance record of
-your run with the published one.
+version with its hash; one file for Linux and Windows. It changes only by a declared
+decision of the maintainers. To reproduce a published number exactly, install from the lock
+([Installation](01_installation.md#exact-reproduction)), run the same pyDAC version and case,
+and compare the provenance record of your run with the published one. The lock fixes the
+package versions, not the machine: on another operating system or processor the numbers can
+still differ in the last digits; CI checks that the lock passes the regression baselines on
+Linux and on Windows within their tolerances.
 
 ## Across pyDAC versions
 

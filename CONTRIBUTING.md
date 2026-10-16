@@ -47,7 +47,7 @@ python -c "import site, pydac; print(site.ENABLE_USER_SITE, pydac.__file__)"
 ```
 
 **Exact environment**, from the root of the clone, with Python 3.12 (the lock is written
-for it); Linux, with `venv`:
+for it; one file for Linux and Windows); Linux, with `venv`:
 
 ```bash
 export PYTHONNOUSERSITE=1
@@ -59,13 +59,20 @@ python -m pip check
 python -c "import site, pydac; print(site.ENABLE_USER_SITE, pydac.__file__)"
 ```
 
-In both, the last line must print `False` and a path inside this clone's `src/pydac/`.
-The name `.venv` is the one VS Code detects on its own. The lock already holds pytest.
+Windows, in PowerShell, with the `py` launcher:
 
-**Windows:** the lock is currently written for Linux only: it does not hold the packages
-that only Windows needs, so `pip` stops with a missing-hash error. On Windows, use the
-normal installation above, or run these commands inside
-[WSL 2](https://learn.microsoft.com/windows/wsl/install) (Linux on Windows).
+```powershell
+$env:PYTHONNOUSERSITE = "1"
+py -3.12 -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --require-hashes -r ci/qualification-lock-py3.12.txt
+python -m pip install --no-deps -e .
+python -m pip check
+python -c "import site, pydac; print(site.ENABLE_USER_SITE, pydac.__file__)"
+```
+
+In each, the last line must print `False` and a path inside this clone's `src/pydac/`.
+The name `.venv` is the one VS Code detects on its own. The lock already holds pytest.
 
 - **Restart running Python sessions after editing sources.** An editable install reads
   the sources when a module is first imported; a running interpreter or notebook kernel

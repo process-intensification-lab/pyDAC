@@ -1,4 +1,5 @@
-# CI of the public repository. Linux x86_64 is supported, Windows is tested, macOS is neither.
+# CI of the public repository. Linux x86_64 is supported, Windows is tested (newest dependencies
+# and the qualification lock), macOS is neither.
 # Every test job installs the BUILT WHEEL, never the checkout: the src/ layout keeps `pydac` off
 # the path, so the suite run from the repository root tests the installed artifact (runners/ and
 # tests/ come from the root). Distribution `pydac3`; import name and command stay `pydac`.
@@ -60,6 +61,7 @@ jobs:
         include:
           - {name: floor, os: ubuntu-latest, python: "3.11", install: lowest}
           - {name: qualification, os: ubuntu-latest, python: "3.12.2", install: lock}
+          - {name: qualification, os: windows-latest, python: "3.12.2", install: lock}
           - {name: base-only, os: ubuntu-latest, python: "3.12", install: base}
           - {name: newest, os: ubuntu-latest, python: "3.13", install: highest}
           - {name: newest, os: ubuntu-latest, python: "3.14", install: highest}

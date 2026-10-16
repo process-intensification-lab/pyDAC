@@ -1,41 +1,64 @@
 about-time==4.2.1 \
     --hash=sha256:6a538862d33ce67d997429d14998310e1dbfda6cb7d9bbfbf799c4709847fece \
     --hash=sha256:8bbf4c75fe13cbd3d72f49a03b02c5c7dca32169b6d49117c257e7eb3eaee341
-    # via alive-progress
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   alive-progress
 alabaster==1.0.0 \
     --hash=sha256:c00dca57bca26fa62a6d7d0a9fcce65f3e026e9bfe33e9c538fd3fbb2144fd9e \
     --hash=sha256:fc6786402dc3fcb2de3cabd5fe455a2db534b371124f1f21de8731783dec828b
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 alive-progress==3.3.0 \
     --hash=sha256:457dd2428b48dacd49854022a46448d236a48f1b7277874071c39395307e830c \
     --hash=sha256:63dd33bb94cde15ad9e5b666dbba8fedf71b72a4935d6fb9a92931e69402c9ff
-    # via pymoo
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymoo
+appnope==1.0.0 ; sys_platform == 'darwin' \
+    --hash=sha256:685db59cb6043c3c2e528adc0b3bce3a5f8d09bcf7492c6ea650d1b7421f3c49 \
+    --hash=sha256:6fe0c04218aab65c54c4ff81638cdbf848d89f5653b74d68638a137f200dd16e
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipykernel
 argcomplete==3.7.2 \
     --hash=sha256:6029205678bdd9c1c728a155f5f9ecf5812393f969eef58807641a2bc2aa5b19 \
     --hash=sha256:aad8b69a0b9969edb62db0d1752354c0d50717b10e0cbb00e2a958381b9fc6b9
-    # via -r qual-3.12.in
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   -r qual-3.12.in
 asttokens==3.0.2 \
     --hash=sha256:3ecdbd8f2cc195f53ccada3a613538bb5f9ef6f6869129f13e03c30a677b8fe2 \
     --hash=sha256:9da13157f5b28becde0bd374fc677dcd3c290614264eff096f167c469cd9f933
-    # via stack-data
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   stack-data
 attrs==26.1.0 \
     --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309 \
     --hash=sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32
     # via
+    #   -c qual-3.12-constraints.txt
     #   jsonschema
     #   referencing
 autograd==1.9.1 \
     --hash=sha256:7818c5c69ddf9efb7da74097bd741a4c7920133f41966f68537223a15ef798bc \
     --hash=sha256:b788bae3fa010cbffb4cfb7b8ba2a3f0daa6072a8506da6164c779fe9cf3e05a
-    # via pymoo
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymoo
 babel==2.18.0 \
     --hash=sha256:b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d \
     --hash=sha256:e2b422b277c2b9a9630c1d7903c2a00d0830c409c59ac8cae9081c92f1aeba35
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 certifi==2026.7.22 \
     --hash=sha256:62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775 \
     --hash=sha256:741e2c3b351ddf169a738da9f2c048608ff7f2c5cc02f1ebc6b118bb090d5d55
-    # via requests
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   requests
 cffi==2.1.1 \
     --hash=sha256:046bfc24911b37851ee1b51aab8bffe713d89c68c6a057b09484ce9fd5f69b4e \
     --hash=sha256:06c72bb76605a4b0cd0aad6930b69d4baf7dd5d806cfc409b824191099700e66 \
@@ -137,7 +160,10 @@ cffi==2.1.1 \
     --hash=sha256:f8ec5e643a9a937f64e1999eb9f75d072263751912dc5cd06d3c85f8f44be7c3 \
     --hash=sha256:fb92203a88b3d3053034db775110081c49d28be6551923805e039924093761e4 \
     --hash=sha256:fcd22650c908d7b7da162bbfaab594a1227a15d1643a98c68b122ac642fa2264
-    # via moocore
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   moocore
+    #   pyzmq
 charset-normalizer==3.5.2 \
     --hash=sha256:01077390b03f7988f11d700a2194e69b119741a86b1a638b1db88891e3eced8e \
     --hash=sha256:01b0c0d2262a9e28e8484a278c7e1b5d650e3ac8cf2683d2967e25899f208bdf \
@@ -311,15 +337,29 @@ charset-normalizer==3.5.2 \
     --hash=sha256:fcff63213e8e6e47770541a4607175404f47cbb3ebea7b6058cc82d524a0e424 \
     --hash=sha256:fd1fbe0f116b6e55da77aca2c6ddcddcfac2186cbf78bdebf40fc156efca389d \
     --hash=sha256:fe9753dfee015c570d73df76f899f18444d41388bffcde097deba51c4fadbb9f
-    # via requests
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   requests
 cma==4.5.0 \
     --hash=sha256:5e6774388d4a3798116bf9aff7684cf44d59f966d868f375e61811f74e132934 \
     --hash=sha256:9b37fa8bd541f1f4cf8e2cc4f98e6f02ec89d6d39ded8ec8a90d4f44c88c62c8
-    # via pymoo
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymoo
+colorama==0.4.6 ; sys_platform == 'win32' \
+    --hash=sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44 \
+    --hash=sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipython
+    #   pytest
+    #   sphinx
 comm==0.2.3 \
     --hash=sha256:2dc8048c10962d55d7ad693be1e7045d891b7ce8d999c97963a5e3e99c055971 \
     --hash=sha256:c615d91d75f7f04f095b30d1c1711babd43bdc6419c1be9886a85f2f4e489417
-    # via ipykernel
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipykernel
 contourpy==1.4.0 \
     --hash=sha256:018227e134b73090b06f911e773a526c77c9af426be29065500ce096a5accd4c \
     --hash=sha256:072a702e2e178f4fcf96f04775d0c059e4c917925abf0d3208ebb6865df3c23d \
@@ -391,7 +431,9 @@ contourpy==1.4.0 \
     --hash=sha256:f863c6100bf926cf47d13f3cd75f9bb8ebd98aaab230eeb4468b91f98f39a6b3 \
     --hash=sha256:fa1b787362a3856e63dd2b89449f6c384d55ee1beb8f94f4bcc871b40f02462c \
     --hash=sha256:fc9feef8f1f001c5b87decadc67c4a5d1eebb62ca39c4763d1237ff62cf2b707
-    # via matplotlib
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   matplotlib
 coverage==7.16.2 \
     --hash=sha256:00d3eb96e9988c45f50cccd1f1496571ac5c1f91386ac02c4d55516eeda19a24 \
     --hash=sha256:01c6908bc613b420c26c818fe948e1b97dfd041a53c98b01c63bd8321f5c9aae \
@@ -514,11 +556,15 @@ coverage==7.16.2 \
     --hash=sha256:fb2bde05838fffae1a1bf75e5d411a6cac3e4e9bb97e6640fed8cd47888b33f0 \
     --hash=sha256:fb9d92ecfe2d5b494367c67f7446f8b75b68d8d0c8cf3bc3e6997478be25d9e2 \
     --hash=sha256:fd3d72233eb8b48acc94fa57d44e2d32ce8e7abed02882ccb6d855ccc4ed33ec
-    # via pytest-cov
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pytest-cov
 cycler==0.12.1 \
     --hash=sha256:85cef7cff222d8644161529808465972e51340599459b8ac3ccbac5a854e0d30 \
     --hash=sha256:88bb128f02ba341da8ef447245a9e138fae777f6a23943da4540077d3601eb1c
-    # via matplotlib
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   matplotlib
 debugpy==1.8.22 \
     --hash=sha256:0c1104233340196e5cbf5514e7dfdbb98968e730cfd7fdd6f3d72a082be838a9 \
     --hash=sha256:12bc7f368182b517cf26c76a2393fff65354e365fa1552b6241e66edff17997b \
@@ -550,26 +596,35 @@ debugpy==1.8.22 \
     --hash=sha256:fa47099176d1d612bef69e9f74658a5687a9f05bd80fb5710f99959bace85735 \
     --hash=sha256:feea785c7bbeb8cfd5b01a63f9061c899dc468c8be81671141a29305774fa294 \
     --hash=sha256:ffeeaf4dfe1534375902040df32a4c48f721fd35a4d4d337ac72a44d4176075b
-    # via ipykernel
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipykernel
 deprecated==3.0.0 \
     --hash=sha256:16850204d3a1e6bb0acd06bff48d96e8b0a0d25d1c52f71705405a0f4894192d \
     --hash=sha256:58204cf4a7f6270d547af5c278ee7a6bb56045a4b3d8441a1cd11660f41b7939
-    # via pymoo
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymoo
 docutils==0.22.4 \
     --hash=sha256:4db53b1fde9abecbb74d91230d32ab626d94f6badfc575d6db9194a49df29968 \
     --hash=sha256:d0013f540772d1420576855455d050a2180186c91c15779301ac2ccb3eeb68de
     # via
+    #   -c qual-3.12-constraints.txt
     #   myst-parser
     #   sphinx
     #   sphinx-rtd-theme
 executing==2.2.1 \
     --hash=sha256:3632cc370565f6648cc328b32435bd120a1e4ebb20c77e3fdde9a13cd1e533c4 \
     --hash=sha256:760643d3452b4d777d295bb167ccc74c64a81df23fb5e08eff250c425a4b2017
-    # via stack-data
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   stack-data
 fastjsonschema==2.22.2 \
     --hash=sha256:0fb3915616adac85ccfdd737d26be1089845d2019819505b42d39888458f74d4 \
     --hash=sha256:72064e12356a7d6ef02165be2946b9abadbdf238536e07eb587e3dbaa33099cf
-    # via nbformat
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   nbformat
 fonttools==4.66.1 \
     --hash=sha256:058cd823b80bac59e64dfad9e3b6fcd677852f9a3804971bbf6b48cc611e785c \
     --hash=sha256:05aeb146451f37289f782c3c861f3d0f4b86c2dd2e4620b46683544c7406640e \
@@ -629,73 +684,89 @@ fonttools==4.66.1 \
     --hash=sha256:eef76d5796e604f9d6753fa6d323c4eb9f4e0e43f1dcca553f3e6914f1667b64 \
     --hash=sha256:f08ab7f8461c37ecfdd29ad97fb0c0780b50501bd664bb0f46b6e83ed2b9d2a7 \
     --hash=sha256:fdf4afd75c643e60ef4a96fe64fc8a9def27d2a542112332371a9e5066885f9a
-    # via matplotlib
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   matplotlib
 graphemeu==0.7.2 \
     --hash=sha256:1444520f6899fd30114fc2a39f297d86d10fa0f23bf7579f772f8bc7efaa2542 \
     --hash=sha256:42bbe373d7c146160f286cd5f76b1a8ad29172d7333ce10705c5cc282462a4f8
-    # via alive-progress
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   alive-progress
 idna==3.20 \
     --hash=sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44 \
     --hash=sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c
-    # via requests
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   requests
 imagesize==2.0.1 \
     --hash=sha256:b2ba6a4dea487a7ebcd53248d3476aca449d30db12a2dde5e0c5ca9624fd77e5 \
     --hash=sha256:ea0c9a0384df69ed86a943a15cde37d0360b82491b3910dc2215e202e62b5b02
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 iniconfig==2.3.0 \
     --hash=sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730 \
     --hash=sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12
-    # via pytest
-intel-cmplr-lib-ur==2026.1.2 \
-    --hash=sha256:b27207f3b42d12ce88cd53ca8b3b7a7e79755aa07a84eccf1c209fcbefe468bf \
-    --hash=sha256:e2ef94d758948a5c52090f723bc113b8614a8a4187f017668d0375b72a8be653
-    # via intel-openmp
-intel-openmp==2026.1.2 \
-    --hash=sha256:4612231a3605db891265c1d8cc4af49ee66009dc55f24012770a9faf3d8ac35e \
-    --hash=sha256:c5fd1bfb8306f7a21abc7494c700ca117bf4abbde841e48b263904ac50b1d694
-    # via mkl
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pytest
 ipykernel==7.4.0 \
     --hash=sha256:4330114d22b9b33575b2c7c68753fc8faabbbcfbc60b0cdff9f14dd4ce63742f \
     --hash=sha256:a6757f790ddc5a6006b813d82da1a9dbb65b3a00f2b6607df776418c6566ec1c
-    # via pymrm
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymrm
 ipython==9.17.1 \
     --hash=sha256:6d1645743cfd1a07eb695d85aa2b5fa66721f8cbae9431d4049f7084bbf06509 \
     --hash=sha256:8919be8c27f20a6f4423145028063f6637b42a03ce57665bb12015ee1f073529
     # via
+    #   -c qual-3.12-constraints.txt
     #   ipykernel
     #   pymrm
 ipython-pygments-lexers==1.1.1 \
     --hash=sha256:09c0138009e56b6854f9535736f4171d855c8c08a563a0dcd8022f78355c7e81 \
     --hash=sha256:a9462224a505ade19a605f71f8fa63c2048833ce50abc86768a0d81d876dc81c
-    # via ipython
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipython
 jedi==0.20.0 \
     --hash=sha256:7bdd9c2634f56713299976f4cbd59cb3fa92165cc5e05ea811fb253480728b67 \
     --hash=sha256:c3f4ccbd276696f4b19c54618d4fb18f9fc24b0aef02acf704b23f487daa1011
-    # via ipython
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipython
 jinja2==3.1.6 \
     --hash=sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d \
     --hash=sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67
     # via
+    #   -c qual-3.12-constraints.txt
     #   myst-parser
     #   sphinx
 jsonschema==4.26.0 \
     --hash=sha256:0c26707e2efad8aa1bfc5b7ce170f3fccc2e4918ff85989ba9ffa9facb2be326 \
     --hash=sha256:d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce
-    # via nbformat
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   nbformat
 jsonschema-specifications==2025.9.1 \
     --hash=sha256:98802fee3a11ee76ecaca44429fda8a41bff98b00a0f2838151b113f210cc6fe \
     --hash=sha256:b540987f239e745613c7a9176f3edb72b832a4ac465cf02712288397832b5e8d
-    # via jsonschema
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   jsonschema
 jupyter-client==8.10.0 \
     --hash=sha256:5f73f24f22fa25192cfff6b23c051932a2473a797b05734aff495b392103e14e \
     --hash=sha256:9f7116294dca55f1785be880057d44544db9b1567718d92cb33c58886afb9497
     # via
+    #   -c qual-3.12-constraints.txt
     #   ipykernel
     #   nbclient
 jupyter-core==5.9.1 \
     --hash=sha256:4d09aaff303b9566c3ce657f580bd089ff5c91f5f89cf7d8846c3cdf465b5508 \
     --hash=sha256:ebf87fdc6073d142e114c72c9e29a9d7ca03fad818c5d300ce2adc1fb0743407
     # via
+    #   -c qual-3.12-constraints.txt
     #   ipykernel
     #   jupyter-client
     #   nbclient
@@ -842,7 +913,9 @@ kiwisolver==1.5.1 \
     --hash=sha256:f9b1c4900736e489a812c529100de4b8fb617d4db075e931e213c57424b83d9b \
     --hash=sha256:fc271a6f0a2126958f4090e5507b9da5848927dae331f8f763bd4aa642b3d2cd \
     --hash=sha256:febcce10f2bcdbb80b4ea919238a6a4ac13dbc4c7cadbe8d5d75c3682f8b5404
-    # via matplotlib
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   matplotlib
 llvmlite==0.44.0 \
     --hash=sha256:07667d66a5d150abed9157ab6c0b9393c9356f229784a4385c02f99e94fc94d4 \
     --hash=sha256:1d671a56acf725bf1b531d5ef76b86660a5ab8ef19bb6a46064a705c6ca80aad \
@@ -866,12 +939,14 @@ llvmlite==0.44.0 \
     --hash=sha256:eed7d5f29136bda63b6d7804c279e2b72e08c952b7c5df61f45db408e0ee52f3 \
     --hash=sha256:f01a394e9c9b7b1d4e63c327b096d10f6f0ed149ef53d38a09b3749dcf8c9610
     # via
+    #   -c qual-3.12-constraints.txt
     #   -r qual-3.12.in
     #   numba
 markdown-it-py==4.2.0 \
     --hash=sha256:04a21681d6fbb623de53f6f364d352309d4094dd4194040a10fd51833e418d49 \
     --hash=sha256:9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a
     # via
+    #   -c qual-3.12-constraints.txt
     #   mdit-py-plugins
     #   myst-parser
 markupsafe==3.0.3 \
@@ -964,7 +1039,9 @@ markupsafe==3.0.3 \
     --hash=sha256:f71a396b3bf33ecaa1626c255855702aca4d3d9fea5e051b41ac59a9c1c41edc \
     --hash=sha256:f9e130248f4462aaa8e2552d547f36ddadbeaa573879158d721bbd33dfe4743a \
     --hash=sha256:fed51ac40f757d41b7c48425901843666a6677e3e8eb0abcff09e4ba6e664f50
-    # via jinja2
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   jinja2
 matplotlib==3.10.3 \
     --hash=sha256:0ab1affc11d1f495ab9e6362b8174a25afc19c081ba5b0775ef00533a4236eea \
     --hash=sha256:0ef061f74cd488586f552d0c336b2f078d43bc00dc473d2c3e7bfee2272f3fa8 \
@@ -1001,6 +1078,7 @@ matplotlib==3.10.3 \
     --hash=sha256:fd5641a9bb9d55f4dd2afe897a53b537c834b9012684c8444cc105895c8c16fd \
     --hash=sha256:fdfa07c0ec58035242bc8b2c8aae37037c9a886370eef6850703d7583e19964b
     # via
+    #   -c qual-3.12-constraints.txt
     #   -r qual-3.12.in
     #   pymoo
     #   pymrm
@@ -1009,22 +1087,21 @@ matplotlib-inline==0.2.2 \
     --hash=sha256:3c821cf1c209f59fb2d2d64abbf5b23b67bcb2210d663f9918dd851c6da1fcf6 \
     --hash=sha256:72f3fe8fce36b70d4a5b612f899090cd0401deddc4ea90e1572b9f4bfb058c79
     # via
+    #   -c qual-3.12-constraints.txt
     #   ipykernel
     #   ipython
 mdit-py-plugins==0.6.1 \
     --hash=sha256:214c82fb2ac524472ab6a5bcab1de80f73b50443e187f401bfd77efbc7c6481d \
     --hash=sha256:a2bca0f039f39dbd35fb74ae1b5f998608c437463371f0ff7f49a19a17a114d0
-    # via myst-parser
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   myst-parser
 mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
-    # via markdown-it-py
-mkl==2026.1.0 \
-    --hash=sha256:4d5a26449818a8aebd4b2aaf6b291831e691f9cf74b152df49b99cf48bbd5360 \
-    --hash=sha256:8194a8270d70622eff00eec84c793efc382b14848b98c3ace6bacdda42170a80
     # via
-    #   -r qual-3.12.in
-    #   pypardiso
+    #   -c qual-3.12-constraints.txt
+    #   markdown-it-py
 moocore==0.3.2 \
     --hash=sha256:118f546d27f93e814bf84cc8007ea8e0a2ec2b3e761fe4e54f864165c45e392d \
     --hash=sha256:19b10372a867e35e34f7816d49909182a2b2290d98289521d3584d5770d05a29 \
@@ -1034,23 +1111,33 @@ moocore==0.3.2 \
     --hash=sha256:9d8040d3b2c19ca27e24869efdfb94eb2f4e749283f95d4aa5ebdab7bd8d566c \
     --hash=sha256:aaed31c1a434a846502f922f86766205c3f9d43642fa73782b1b5a5136de0573 \
     --hash=sha256:f9bdc963ac4efb0f1e06d290b019950c3d526e5b1499f0f821180d10712a14e8
-    # via pymoo
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymoo
 myst-parser==5.1.0 \
     --hash=sha256:9c91c52b3cdb4d94a6506e4fab4e2f296c7623a0da0dcbe6de1565c3dad67a8a \
     --hash=sha256:ab69322dc6719dcc7f296479dbb70181b66df6ed315064f92dbc85c0e1bf2f02
-    # via pymrm
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymrm
 nbclient==0.11.0 \
     --hash=sha256:04a134a5b087f2c5887f228aca155db50169b8cd9334dee6942c8e927e56081a \
     --hash=sha256:ef7fa0d59d6e1d41103933d8a445a18d5de860ca6b613b87b8574accdb3c2895
-    # via pymrm
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymrm
 nbformat==5.11.1 \
     --hash=sha256:32d4521c68c6e7d5b29c76defaeed9f42ea733142b9b19f88277ce10390b9c4d \
     --hash=sha256:cc6698fa75f4fab8755ead786317815f13a6fee3b53311c0abb1a8b51d52f7ec
-    # via nbclient
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   nbclient
 nest-asyncio2==1.7.3 \
     --hash=sha256:2bc87bdca654e719425145f5e84eaeb0080b013fdd47d65729a7d66243f4987c \
     --hash=sha256:2e9a84d5d1efe6d020c72988d21aec569bac42d98af2ff6b9de24640c5d22a34
-    # via ipykernel
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipykernel
 numba==0.61.0 \
     --hash=sha256:074cd38c5b1f9c65a4319d1f3928165f48975ef0537ad43385b2bd908e6e2e35 \
     --hash=sha256:0ebbd4827091384ab8c4615ba1b3ca8bc639a3a000157d9c37ba85d34cd0da1b \
@@ -1074,6 +1161,7 @@ numba==0.61.0 \
     --hash=sha256:de5aa7904741425f28e1028b85850b31f0a245e9eb4f7c38507fb893283a066c \
     --hash=sha256:ffe9fe373ed30638d6e20a0269f817b2c75d447141f55a675bfcf2d1fe2e87fb
     # via
+    #   -c qual-3.12-constraints.txt
     #   -r qual-3.12.in
     #   pymrm
 numpy==2.1.3 \
@@ -1133,6 +1221,7 @@ numpy==2.1.3 \
     --hash=sha256:f653490b33e9c3a4c1c01d41bc2aef08f9475af51146e4a7710c450cf9761598 \
     --hash=sha256:fa2d1337dc61c8dc417fbccf20f6d1e139896a30721b7f1e832b2bb6ef4eb6c4
     # via
+    #   -c qual-3.12-constraints.txt
     #   -r qual-3.12.in
     #   autograd
     #   cma
@@ -1143,18 +1232,14 @@ numpy==2.1.3 \
     #   pandas
     #   pymoo
     #   pymrm
-    #   pypardiso
     #   scikit-sundae
     #   scipy
     #   seaborn
-onemkl-license==2026.1.0 \
-    --hash=sha256:39fd829648af92c9e03c22ba228f07174d829aaa2fe3c5f6cd7073b8eb8a9805 \
-    --hash=sha256:425b599af279e6bc03e27319d75aa156ca7dd8645dbcd0c324ef894d3fae6be3
-    # via mkl
 packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
     --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
     # via
+    #   -c qual-3.12-constraints.txt
     #   ipykernel
     #   matplotlib
     #   pytest
@@ -1203,17 +1288,22 @@ pandas==2.2.3 \
     --hash=sha256:f3a255b2c19987fbbe62a9dfd6cff7ff2aa9ccab3fc75218fd4b7530f01efa24 \
     --hash=sha256:fffb8ae78d8af97f849404f21411c95062db1496aeb3e56f146f0355c9989319
     # via
+    #   -c qual-3.12-constraints.txt
     #   -r qual-3.12.in
     #   pymrm
     #   seaborn
 parso==0.8.7 \
     --hash=sha256:a8926eb2a1b915486941fdbd31e86a4baf88fe8c210f25f2f35ecec5b574ca1c \
     --hash=sha256:eaaac4c9fdd5e9e8852dc778d2d7405897ec510f2a298071453e5e3a07914bb1
-    # via jedi
-pexpect==4.9.0 \
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   jedi
+pexpect==4.9.0 ; sys_platform != 'emscripten' and sys_platform != 'win32' \
     --hash=sha256:7236d1e080e4936be2dc3e326cec0af72acf9212a7e1d060210e70a47e253523 \
     --hash=sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f
-    # via ipython
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipython
 pillow==12.3.0 \
     --hash=sha256:00808c5e14ef63ac5161091d242999076604ff74b883423a11e5d7bbb38bf756 \
     --hash=sha256:04f01d28a6aaff387bf842a13be313df23ba0597a44f1a976c9feb3c6ff4711a \
@@ -1302,28 +1392,36 @@ pillow==12.3.0 \
     --hash=sha256:fdafc9cce40277e0f7a0feabce0ee50dd2fa1800f3b38015e51296b5e814048d \
     --hash=sha256:fe3cca2e4e8a592be0f269a1ca4835c25199d9f3ce815c8491048f785b0a0198 \
     --hash=sha256:ffd0c5368496f41b0944be820fcb7a838aa6e623d250b01acf2643939c3f99d7
-    # via matplotlib
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   matplotlib
 pip==26.2.1 \
     --hash=sha256:71138adf1f4ca900cdb7d289c21b7494329f2332b6d85f0e1c42108c0384ed3e \
     --hash=sha256:f6ad667e89a1fe78046c8f13232b247200f5258d7828f3f7883d660878e0813f
-    # via pymrm
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymrm
 platformdirs==4.12.2 \
     --hash=sha256:29dbf06d96c500bc6bdbce75fb0a14d63279c93b1842f97e72a135b33e856983 \
     --hash=sha256:eab5f70271a490ef74618bb314fbb86e3c7e82fa3b9c922c2ea0e0a1a155d329
     # via
+    #   -c qual-3.12-constraints.txt
     #   jupyter-core
     #   moocore
 pluggy==1.6.0 \
     --hash=sha256:7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3 \
     --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
     # via
+    #   -c qual-3.12-constraints.txt
     #   pytest
     #   pytest-cov
 prompt-toolkit==3.0.53 \
     --hash=sha256:01c0891d7f9237d5e339f7d3e42cdae80b7534abb1c7c0e3352efba6231492f2 \
     --hash=sha256:9ec8a0ad96d5c56148b3f914aa79c1564c3fde5d2e6b876e7bc327e353cf8fa6
-    # via ipython
-psutil==7.2.2 \
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipython
+psutil==7.2.2 ; sys_platform != 'cygwin' and sys_platform != 'emscripten' \
     --hash=sha256:0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372 \
     --hash=sha256:076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9 \
     --hash=sha256:11fe5a4f613759764e79c65cf11ebdf26e33d6dd34336f8a337aa2996d71c841 \
@@ -1345,23 +1443,32 @@ psutil==7.2.2 \
     --hash=sha256:ed0cace939114f62738d808fdcecd4c869222507e266e574799e9c0faa17d486 \
     --hash=sha256:eed63d3b4d62449571547b60578c5b2c4bcccc5387148db46e0c2313dad0ee00 \
     --hash=sha256:fd04ef36b4a6d599bbdb225dd1d3f51e00105f6d48a28f006da7f9822f2606d8
-    # via ipython
-ptyprocess==0.7.0 \
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   ipython
+ptyprocess==0.7.0 ; sys_platform != 'emscripten' and sys_platform != 'win32' \
     --hash=sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35 \
     --hash=sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220
-    # via pexpect
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pexpect
 pure-eval==0.2.4 \
     --hash=sha256:260c2774686e651b79f8b8e7fc9d80b3599ea6a66334b47d5f4abb69fc2c0ea1 \
     --hash=sha256:96cae060a313cfaad51bb761278bfb0e62dc0248d9315a81173752dc546cd37a
-    # via stack-data
-pycparser==3.0 \
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   stack-data
+pycparser==3.0 ; implementation_name != 'PyPy' \
     --hash=sha256:600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29 \
     --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992
-    # via cffi
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   cffi
 pygments==2.21.0 \
     --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9 \
     --hash=sha256:610ca751c9bc2492b38eb9a38a7fbc93edbbb2d7182edaf34e66ae493dee5c8c
     # via
+    #   -c qual-3.12-constraints.txt
     #   ipython
     #   ipython-pygments-lexers
     #   sphinx
@@ -1402,41 +1509,49 @@ pymoo==0.6.2 \
     --hash=sha256:fb5e9b15e797ad626810e88d7d5b24c37ffbfe372c64a66754924d1b8ed288a0 \
     --hash=sha256:fd5efd5c12f6d4bf92ff84da4e85ac1f37eacfc007f0cce9946e5a816a502a1f \
     --hash=sha256:ffd16204031a08119dc13292fc02903dce68694ab6eca66a0b24c54c05183771
-    # via -r qual-3.12.in
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   -r qual-3.12.in
 pymrm==2.1.10 \
     --hash=sha256:08cf057b8d1bcb2cfe9450db125712f0b8d12a858af01d9890350eff72141866 \
     --hash=sha256:8808c0ab1a90cff88d67a88786c13f8ba186d6af4f50256a2d07baef41b5a4bf
-    # via -r qual-3.12.in
-pypardiso==0.4.7 \
-    --hash=sha256:0f307c749ace576d9de5c63ce39af0e850d8f772697260454f3deb0202a7a92d \
-    --hash=sha256:157b2d188d884b4bf2cd90a0cb3efae513b8b6215c29ebb4659e9cc38610c839
-    # via -r qual-3.12.in
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   -r qual-3.12.in
 pyparsing==3.3.3 \
     --hash=sha256:928ae7e20211f3b6f3915a72f06a0cfd29ab9d24279dd6346b6b1a7146397d36 \
     --hash=sha256:ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4
-    # via matplotlib
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   matplotlib
 pytest==8.3.5 \
     --hash=sha256:c69214aa47deac29fad6c2a4f590b9c4a9fdb16a403176fe154b79c0b4d4d820 \
     --hash=sha256:f4efe70cc14e511565ac476b57c279e12a855b11f48f212af1080ef2263d3845
     # via
+    #   -c qual-3.12-constraints.txt
     #   -r qual-3.12.in
     #   pymrm
     #   pytest-cov
 pytest-cov==7.1.0 \
     --hash=sha256:30674f2b5f6351aa09702a9c8c364f6a01c27aae0c1366ae8016160d1efc56b2 \
     --hash=sha256:a0461110b7865f9a271aa1b51e516c9a95de9d696734a2f71e3e78f46e1d4678
-    # via pymrm
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymrm
 python-dateutil==2.9.0.post0 \
     --hash=sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3 \
     --hash=sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427
     # via
+    #   -c qual-3.12-constraints.txt
     #   jupyter-client
     #   matplotlib
     #   pandas
 pytz==2026.4 \
     --hash=sha256:464303645bafafd72418898368b2429458f709cf1eb6a15372fbcc396b64da63 \
     --hash=sha256:9d514388fbc89ca0833203464272ac485b8828568ab73532f5020f17e892a0ff
-    # via pandas
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pandas
 pyyaml==6.0.3 \
     --hash=sha256:00c4bdeba853cc34e7dd471f16b4114f4162dc03e6b7afcc2128711f0eca823c \
     --hash=sha256:0150219816b6a1fa26fb4699fb7daa9caf09eb1999f3b70fb6e786805e80375a \
@@ -1511,7 +1626,9 @@ pyyaml==6.0.3 \
     --hash=sha256:f7057c9a337546edc7973c0d3ba84ddcdf0daa14533c2065749c9075001090e6 \
     --hash=sha256:fa160448684b4e94d80416c0fa4aac48967a969efe22931448d853ada8baf926 \
     --hash=sha256:fc09d0aa354569bc501d4e787133afc08552722d3ab34836a80547331bb5d4a0
-    # via myst-parser
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   myst-parser
 pyzmq==27.2.0 \
     --hash=sha256:00e73942ef12cecbc7951c4a9104bb8ffaed742abb13af2da6833d90dd368cef \
     --hash=sha256:010db74a1dd67c7cd8b8b30916355735db7d633a070510bb34e41ab679ab2c0e \
@@ -1600,22 +1717,28 @@ pyzmq==27.2.0 \
     --hash=sha256:fdaaa4ea3242f6ad298eb5177eb042aea5c73c30e76d20caee7b15af20d24ec2 \
     --hash=sha256:ff60f0f7ccfda0e303ac43bec7096007b7cdf2c41b3739d1ec667febe67acab3
     # via
+    #   -c qual-3.12-constraints.txt
     #   ipykernel
     #   jupyter-client
 referencing==0.37.0 \
     --hash=sha256:381329a9f99628c9069361716891d34ad94af76e461dcb0335825aecc7692231 \
     --hash=sha256:44aefc3142c5b842538163acb373e24cce6632bd54bdb01b21ad5863489f50d8
     # via
+    #   -c qual-3.12-constraints.txt
     #   jsonschema
     #   jsonschema-specifications
 requests==2.34.2 \
     --hash=sha256:2a0d60c172f83ac6ab31e4554906c0f3b3588d37b5cb939b1c061f4907e278e0 \
     --hash=sha256:f288924cae4e29463698d6d60bc6a4da69c89185ad1e0bcc4104f584e960b9ed
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 roman-numerals==4.1.0 \
     --hash=sha256:1af8b147eb1405d5839e78aeb93131690495fe9da5c91856cb33ad55a7f1e5b2 \
     --hash=sha256:647ba99caddc2cc1e55a51e4360689115551bf4476d90e8162cf8c345fe233c7
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 rpds-py==2026.6.3 \
     --hash=sha256:0be972be84cfcaf46c8c6edf690ca0f154ac17babf1f6a955a51579b34ad2dc5 \
     --hash=sha256:127565fead0a10943b282957bd5447804ff3160ad79f2ad2635e6d249e380680 \
@@ -1734,6 +1857,7 @@ rpds-py==2026.6.3 \
     --hash=sha256:f90938e92afda60266da758ee7d363447f7f0138c9559f9e1811629580582d90 \
     --hash=sha256:faa679d19a6696fd54259ad321251ad77a13e70e03dd834daa762a44fb6196ef
     # via
+    #   -c qual-3.12-constraints.txt
     #   jsonschema
     #   referencing
 scikit-sundae==1.1.0 \
@@ -1758,7 +1882,9 @@ scikit-sundae==1.1.0 \
     --hash=sha256:e18bf4e0a02d0f57684401c5ebd7016c057a019d75153d5c46d1e816ddd15176 \
     --hash=sha256:f52e5f3ff5890f9427d5060e445eb20152dc7618891ecc9a9ec1dea88b6874a6 \
     --hash=sha256:fe23096d0fe07bb8d6d9b53c084f61b95a8cb1b6773dd62a3cacbc173b648e3c
-    # via -r qual-3.12.in
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   -r qual-3.12.in
 scipy==1.15.2 \
     --hash=sha256:01edfac9f0798ad6b46d9c4c9ca0e0ad23dbf0b1eb70e96adb9fa7f525eff0bf \
     --hash=sha256:03205d57a28e18dfd39f0377d5002725bf1f19a46f444108c29bdb246b6c8a11 \
@@ -1807,27 +1933,34 @@ scipy==1.15.2 \
     --hash=sha256:fb530e4794fc8ea76a4a21ccb67dea33e5e0e60f07fc38a49e821e1eae3b71a0 \
     --hash=sha256:fe8a9eb875d430d81755472c5ba75e84acc980e4a8f6204d402849234d3017db
     # via
+    #   -c qual-3.12-constraints.txt
     #   -r qual-3.12.in
     #   pymoo
     #   pymrm
-    #   pypardiso
     #   scikit-sundae
 seaborn==0.13.2 \
     --hash=sha256:636f8336facf092165e27924f223d3c62ca560b1f2bb5dff7ab7fad265361987 \
     --hash=sha256:93e60a40988f4d65e9f4885df477e2fdaff6b73a9ded434c1ab356dd57eefff7
-    # via -r qual-3.12.in
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   -r qual-3.12.in
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
-    # via python-dateutil
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   python-dateutil
 snowballstemmer==3.1.1 \
     --hash=sha256:7e207fa178741da09cdee59d3ecec3827ad5f92b1fc5c9ff3755b639f71f5752 \
     --hash=sha256:e07bbc54a0d798fe6010a12398422e62a8bfbba95c394fd0956ef58cb4d3e260
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 sphinx==9.1.0 \
     --hash=sha256:7741722357dd75f8190766926071fed3bdc211c74dd2d7d4df5404da95930ddb \
     --hash=sha256:c84fdd4e782504495fe4f2c0b3413d6c2bf388589bb352d439b2a3bb99991978
     # via
+    #   -c qual-3.12-constraints.txt
     #   myst-parser
     #   pymrm
     #   sphinx-rtd-theme
@@ -1835,49 +1968,57 @@ sphinx==9.1.0 \
 sphinx-rtd-theme==3.1.0 \
     --hash=sha256:1785824ae8e6632060490f67cf3a72d404a85d2d9fc26bce3619944de5682b89 \
     --hash=sha256:b44276f2c276e909239a4f6c955aa667aaafeb78597923b1c60babc76db78e4c
-    # via pymrm
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pymrm
 sphinxcontrib-applehelp==2.0.0 \
     --hash=sha256:2f29ef331735ce958efa4734873f084941970894c6090408b079c61b2e1c06d1 \
     --hash=sha256:4cd3f0ec4ac5dd9c17ec65e9ab272c9b867ea77425228e68ecf08d6b28ddbdb5
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 sphinxcontrib-devhelp==2.0.0 \
     --hash=sha256:411f5d96d445d1d73bb5d52133377b4248ec79db5c793ce7dbe59e074b4dd1ad \
     --hash=sha256:aefb8b83854e4b0998877524d1029fd3e6879210422ee3780459e28a1f03a8a2
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 sphinxcontrib-htmlhelp==2.1.0 \
     --hash=sha256:166759820b47002d22914d64a075ce08f4c46818e17cfc9470a9786b759b19f8 \
     --hash=sha256:c9e2916ace8aad64cc13a0d233ee22317f2b9025b9cf3295249fa985cc7082e9
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 sphinxcontrib-jquery==4.1 \
     --hash=sha256:1620739f04e36a2c779f1a131a2dfd49b2fd07351bf1968ced074365933abc7a \
     --hash=sha256:f936030d7d0147dd026a4f2b5a57343d233f1fc7b363f68b3d4f1cb0993878ae
-    # via sphinx-rtd-theme
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx-rtd-theme
 sphinxcontrib-jsmath==1.0.1 \
     --hash=sha256:2ec2eaebfb78f3f2078e73666b1415417a116cc848b72e5172e596c871103178 \
     --hash=sha256:a9925e4a4587247ed2191a22df5f6970656cb8ca2bd6284309578f2153e0c4b8
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 sphinxcontrib-qthelp==2.0.0 \
     --hash=sha256:4fe7d0ac8fc171045be623aba3e2a8f613f8682731f9153bb2e40ece16b9bbab \
     --hash=sha256:b18a828cdba941ccd6ee8445dbe72ffa3ef8cbe7505d8cd1fa0d42d3f2d5f3eb
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 sphinxcontrib-serializinghtml==2.0.0 \
     --hash=sha256:6e2cb0eef194e10c27ec0023bfeb25badbbb5868244cf5bc5bdc04e4464bf331 \
     --hash=sha256:e9d912827f872c029017a53f0ef2180b327c3f7fd23c87229f7a8e8b70031d4d
-    # via sphinx
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   sphinx
 stack-data==0.6.3 \
     --hash=sha256:836a778de4fec4dcd1dcd89ed8abff8a221f58308462e1c4aa2a3cf30148f0b9 \
     --hash=sha256:d5558e0c25a4cb0853cddad3d77da9891a08cb85dd9f9f91b9f8cd66e511e695
-    # via ipython
-tbb==2023.1.0 \
-    --hash=sha256:27df1315202defc67a73800c667ba4fbd03cf8924f73949373d4a34d1443fca2 \
-    --hash=sha256:64ad35241c736a595498f5343abec8eaaa203e9fe0dbdbf4b86d37c5a3ab1d9c
-    # via mkl
-tcmlib==1.5.0 \
-    --hash=sha256:9d7c01cff35aae9bf5390b620680ebdf10a7d211c22d6488a27a029502e7d0aa \
-    --hash=sha256:f7b62787214083d490b39d7650f1e477eeacc875e7f86799feb9aa1fd34460d4
     # via
-    #   tbb
-    #   umf
+    #   -c qual-3.12-constraints.txt
+    #   ipython
 tornado==6.5.10 \
     --hash=sha256:302eb1e0e3e159314eb591920529fdea80acca92df5510a2cec5bbd4f099ec72 \
     --hash=sha256:37ae8f150cecfdbf747fc4e12f5e9a97ecd8cf1d4cdb3f119e2de84b11196918 \
@@ -1890,12 +2031,14 @@ tornado==6.5.10 \
     --hash=sha256:bdf942448169e5336451d0494d7e3d81cfa726d5aa312affdc4682dd62a62f6d \
     --hash=sha256:ce045d3c298fddd30e89a2777f97039d1b641eb9518ac7b26a4721903539c694
     # via
+    #   -c qual-3.12-constraints.txt
     #   ipykernel
     #   jupyter-client
 traitlets==5.16.1 \
     --hash=sha256:ed900c2b631aa3a112811139fa97b8d2c3bad5e989656bba4b7e52c7852c18c1 \
     --hash=sha256:f775618166caa0396c8e337099240f2bd3e5e917d203b2e6fbe21a58d3cb1f6b
     # via
+    #   -c qual-3.12-constraints.txt
     #   ipykernel
     #   ipython
     #   jupyter-client
@@ -1907,20 +2050,21 @@ typing-extensions==4.16.0 \
     --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
     --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5
     # via
+    #   -c qual-3.12-constraints.txt
     #   jupyter-client
     #   referencing
 tzdata==2026.4 \
     --hash=sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81 \
     --hash=sha256:f1b8bd365d8d210c55353f4d7f8d6d8561c0ba50d704b700d195a9424bba0d79
-    # via pandas
-umf==1.1.0 \
-    --hash=sha256:567152c5ee6b8e16cc56b29a8a9a6b918de1febf89877f71ea2e8247ef39fc32 \
-    --hash=sha256:a8c5ff84901fe6348715b6c1c85de4d195a6c69185d99ce4ebf7449b5d04011c
-    # via intel-cmplr-lib-ur
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   pandas
 urllib3==2.8.0 \
     --hash=sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3 \
     --hash=sha256:63bf2ead4c879426ebf22ef2a781eeb4aa3b4ae798a0435506f8687fd5bb9b63
-    # via requests
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   requests
 wcwidth==0.9.1 \
     --hash=sha256:03cfca3dcbffa86564290fe3c9978a6191ba003e8ced7f7dbda315fcb3fbe725 \
     --hash=sha256:0665ee822ea04e25801e6e82e5407528be0863e88a17b0e7ca038843a4a3ac0c \
@@ -1943,7 +2087,9 @@ wcwidth==0.9.1 \
     --hash=sha256:e0c3a1c45c5b9550c6919a4449e95f5b177f6e165786376981db8f1addae9b21 \
     --hash=sha256:eab587e18e7cadf1a750b0098fc8bebfb62c125eb9306f2268f0443a282a3d78 \
     --hash=sha256:fe021c4d8de9d36c31a0cb41d0d2546dadd3b0708a301f1a0c66ce200851831f
-    # via prompt-toolkit
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   prompt-toolkit
 wrapt==2.5.0 \
     --hash=sha256:05246a100da68259af521b88788f131ba005465f1c95d358cc3c03ec5e351b52 \
     --hash=sha256:05b7a271e21598694dcb7a6d6224f04e80ecc24b00a31ec57c658196377b0b29 \
@@ -2046,4 +2192,6 @@ wrapt==2.5.0 \
     --hash=sha256:fd91203e156d610ecb28b9ccd7b764af7a7b38662d7c163090babab0d10def0c \
     --hash=sha256:fe09aac4837ec720af606a493e814dcc3f65631984e1b7231b589efcf9917024 \
     --hash=sha256:ff909b934b1958e31784d412abab5cbb0709fdbc01c86f22965e1d15331371ba
-    # via deprecated
+    # via
+    #   -c qual-3.12-constraints.txt
+    #   deprecated

@@ -208,7 +208,8 @@ after activating the environment. Then `pydac cs` + Tab completes to `pydac css`
 
 To rebuild the environment in which pyDAC was qualified, every package at the exact
 version and checked against its hash, use the lock file of the repository. It is written
-for Python 3.12. From the root of a clone, in a second fresh environment; Linux, with `venv`:
+for Python 3.12, and the same file serves Linux and Windows. From the root of a clone, in a
+second fresh environment; Linux, with `venv`:
 
 ```bash
 python3.12 -m venv pydac-exact
@@ -219,10 +220,14 @@ python -m pip install --no-deps .
 
 `--no-deps` installs pyDAC itself without letting pip change any version the lock fixed.
 
-**Windows:** the lock is currently written for Linux only: it does not hold the packages
-that only Windows needs, so `pip` stops with a missing-hash error. On Windows, use the
-normal installation ([Install pyDAC](#install-pydac)), or run these commands inside
-[WSL 2](https://learn.microsoft.com/windows/wsl/install) (Linux on Windows).
+Windows, in PowerShell, with the `py` launcher (the same lock file):
+
+```powershell
+py -3.12 -m venv pydac-exact
+pydac-exact\Scripts\Activate.ps1
+python -m pip install --require-hashes -r ci/qualification-lock-py3.12.txt
+python -m pip install --no-deps .
+```
 
 ## Update or remove
 

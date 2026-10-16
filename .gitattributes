@@ -1,0 +1,6 @@
+# Text files are stored and checked out with LF on every platform, Windows included, so a file
+# a test hashes or compares byte for byte (cases, baselines) is the same in every clone.
+* text=auto eol=lf
+# Tables and measured data stay byte for byte as committed (some were saved with CRLF).
+*.csv -text
+*.tsv -text
