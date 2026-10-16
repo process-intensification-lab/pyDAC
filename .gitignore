@@ -32,7 +32,7 @@ dist/
 *.egg-info/
 
 # Simulation results
-simulation_results/*
+simulation_results
 
 # Jacobian masks are generated in memory; no cache folder may come back
 src/pydac/core/sparsity_patterns/*/
