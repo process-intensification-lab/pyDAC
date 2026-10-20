@@ -13,7 +13,7 @@ A result is reproducible when someone else can run the same case with the same s
 get the same numbers. pyDAC helps in four ways: the frozen case fixes every input, the
 fingerprint names it, every run records the software that produced it, and the
 qualification lock fixes the whole environment. This page shows how to use each, and what
-pyDAC 3.0.0 promises across versions.
+pyDAC 3.1.0 promises across versions.
 
 The examples use the small 1D case of the [quick start](02_quickstart.md), in a new, empty
 folder:
@@ -80,7 +80,7 @@ Abridged, from the run above (installed from a package):
     "relocated_fields": ["execution.output_root"]
   },
   "software": {
-    "version": "3.0.1",
+    "version": "3.1.0",
     "python": {"implementation": "CPython", "version": "3.12.2"},
     "dependencies": {"numpy": {"version": "2.5.3"}, "scipy": {"version": "1.18.1"}, "pymoo": {"version": "0.6.2"}},
     "native_libraries": {"sundials_version": "7.5.0"},

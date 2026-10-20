@@ -7,8 +7,6 @@ informative parts of each TVSA step.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
 
 T_END_OVERRIDES = {

@@ -48,6 +48,21 @@ OPAQUE_MAPPING_PATHS = frozenset(
     }
 )
 
+# The opaque mappings keyed by species. Species names do not depend on case, so
+# a setting may spell one of their keys in any case; every other key, model
+# parameter names included, is matched exactly.
+SPECIES_KEYED_PATHS = frozenset(
+    {
+        "adsorption.kinetics",
+        "sorbent.heats_of_adsorption_J_mol",
+        "sorbent.fixed_adsorbates",
+    }
+    | {
+        f"steps.{step}.composition.{INITIAL_SOLID_LOADINGS_FIELD}"
+        for step in cycle_defaults()["steps"]
+    }
+)
+
 
 def _parse_cli_value(raw_value: str) -> Any:
     """Parse a JSON scalar, falling back to an unquoted string."""
@@ -82,6 +97,12 @@ def _canonical_path(path: str) -> str:
 
 
 def _flatten_mapping(mapping: Mapping[str, Any], prefix: str = "") -> dict[str, Any]:
+    """Flatten a nested settings block into canonical dotted paths.
+
+    An opaque mapping stays one setting (replaced whole); any other block is
+    split into its fields, and an empty one is refused because it would set
+    nothing.
+    """
     flattened: dict[str, Any] = {}
 
     def add(path: str, value: Any) -> None:
@@ -93,24 +114,27 @@ def _flatten_mapping(mapping: Mapping[str, Any], prefix: str = "") -> dict[str, 
         if not isinstance(raw_key, str):
             raise SettingsError("Setting paths must be strings.")
 
-        # Accept a complete nested runner block as well as the documented
-        # public paths. The wrapper is structural, not part of the canonical
-        # setting vocabulary.
-        if not prefix and raw_key == "simulation" and isinstance(value, Mapping):
-            for path, nested_value in _flatten_mapping(value).items():
-                add(path, nested_value)
-            continue
-        if not prefix and raw_key == "cycle" and isinstance(value, Mapping):
-            for path, nested_value in _flatten_mapping(value).items():
-                add(path, nested_value)
-            continue
+        # The canonical path is taken from the whole spelled path, so a nested
+        # block reads like its dotted form: {"cycle": {"w_des": ...}} is
+        # cycle.w_des, and the "simulation" and "cycle" wrappers drop out the same way.
         key = f"{prefix}.{raw_key}" if prefix else raw_key
+        if key == "simulation" and isinstance(value, Mapping) and not value:
+            raise SettingsError("An empty `simulation` block sets nothing; name the fields to set.")
+        if key == "simulation" and isinstance(value, Mapping):
+            for path, nested_value in _flatten_mapping(value, key).items():
+                add(path, nested_value)
+            continue
         canonical = _canonical_path(key)
 
         if canonical in OPAQUE_MAPPING_PATHS:
             add(canonical, value)
         elif isinstance(value, Mapping):
-            for path, nested_value in _flatten_mapping(value, canonical).items():
+            # An empty block would set nothing and skip the path check: refuse it.
+            if not value:
+                raise SettingsError(
+                    f"An empty block at {canonical!r} sets nothing; name the fields to set."
+                )
+            for path, nested_value in _flatten_mapping(value, key).items():
                 add(path, nested_value)
         else:
             add(canonical, value)
@@ -123,8 +147,9 @@ def resolve_settings(
     """Normalize runner mappings or CLI ``path=value`` items.
 
     Nested runner mappings and dotted CLI-style mappings resolve to the same
-    canonical paths. Values are copied so callers can safely reuse their
-    settings block after loading an experiment.
+    canonical paths, and a CLI object value (`path={...}`) is flattened like
+    the same mapping in Python. Values are copied so callers can safely reuse
+    their settings block after loading an experiment.
     """
     if settings is None:
         return {}
@@ -141,10 +166,13 @@ def resolve_settings(
                 f"received {expression!r}."
             )
         path, raw_value = expression.split("=", 1)
-        canonical = _canonical_path(path.strip())
-        if canonical in resolved:
-            raise SettingsError(f"Setting path {canonical!r} was supplied twice.")
-        resolved[canonical] = _parse_cli_value(raw_value.strip())
+        # An object value reads like the same block in Python: its fields merge
+        # into the case, and only an opaque block is replaced whole.
+        items = _flatten_mapping({path.strip(): _parse_cli_value(raw_value.strip())})
+        for canonical, value in items.items():
+            if canonical in resolved:
+                raise SettingsError(f"Setting path {canonical!r} was supplied twice.")
+            resolved[canonical] = value
     return resolved
 
 
@@ -153,4 +181,10 @@ def setting_path_parts(path: str) -> tuple[str, ...]:
     return tuple(_canonical_path(path).split("."))
 
 
-__all__ = ["OPAQUE_MAPPING_PATHS", "SettingsError", "resolve_settings", "setting_path_parts"]
+__all__ = [
+    "OPAQUE_MAPPING_PATHS",
+    "SPECIES_KEYED_PATHS",
+    "SettingsError",
+    "resolve_settings",
+    "setting_path_parts",
+]

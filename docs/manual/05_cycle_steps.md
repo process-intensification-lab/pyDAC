@@ -1,5 +1,5 @@
 ---
-title: "05 — Cycle Steps"
+title: "05 — Cycle steps"
 toc: true
 toc-depth: 3
 embed-resources: true
@@ -19,20 +19,20 @@ This document describes the built-in settings, boundary conditions, and stopping
 
 ---
 
-## 1. Cycle Construction
+## 1. Cycle construction
 
 pyDAC does not hard-code one single thermodynamic cycle. The runner builds a cycle from explicit step tokens.
 
-### 1.1 Default Sequences In Code
+### 1.1 Default sequences in code
 
 The sequences and their construction rules are owned by
 [`utils/tvsa/cycle_steps.py`](../../src/pydac/utils/tvsa/cycle_steps.py).
-If `cycle_steps=None`, the shared cycle runner uses the **vanilla TVSA cycle** —
+If `cycle_steps=None`, the shared cycle runner uses the **vanilla temperature-vacuum swing adsorption (TVSA) cycle** —
 wall pre-heating followed directly by steam-assisted desorption:
 
 - Step mode:
   `["startup", "blow", "heat", "s_des", "cool", "press", "ads"]`
-- CSS repeating mode:
+- Cyclic steady state (CSS) repeating mode:
   `["ads", "blow", "heat", "s_des", "cool", "press"]`
 
 Steam purge (`s_purge`) and wall-heated desorption (`w_des`) remain explicit
@@ -52,7 +52,7 @@ CSS builder is the mirror image: `build_repeating_cycle_steps()` *rejects*
 `startup` in the list, because cycle 1 is the only cycle that gets one and it
 gets it by substitution for the leading `ads`.
 
-### 1.2 Explicit Desorption Choice
+### 1.2 Explicit desorption choice
 
 The code requires an explicit desorption mode:
 
@@ -63,7 +63,7 @@ Generic `des` / `desorption` tokens are rejected on purpose. The full alias
 table — every spelling accepted for each of the ten steps — is in
 [01 — Inputs §2.3](01_inputs.md#23-the-one-distinction-that-causes-most-of-the-confusion).
 
-### 1.3 Every Step Uses the Direct Linear Solver
+### 1.3 Every step uses the direct linear solver
 
 Steps do not choose a linear solver: every integrated step uses a direct
 solver, the sparse factorization by default; `execution.use_sparsity = false`
@@ -73,17 +73,17 @@ is upgraded and one asking for GMRES is refused; see
 
 ---
 
-## 2. Boundary-Condition Framework
+## 2. Boundary-condition framework
 
-### 2.1 General BC Form
+### 2.1 General BC form
 
-The operator-based BCs follow the generalized linear form:
+The operator-based boundary conditions (BCs) follow the generalized linear form:
 
 $$a \frac{\partial \phi}{\partial n}\bigg|_{face} + b \phi\bigg|_{face} = d$$
 
 This is the same convention used by the underlying `pymrm` operator builders.
 
-### 2.2 Species And Energy Inlet Treatment
+### 2.2 Species and energy inlet treatment
 
 For species and bed temperature, the axial inlet operator BC is always created with a dummy zero form:
 
@@ -104,9 +104,9 @@ Those fluxes are:
 - zero for `blow`, `heat`, `w_purge`, `w_des`, and `cool`, because their built-in
   volumetric flow is zero: the fluxes are computed from that flow, so keep it zero
   for a closed inlet
-- recomputed every RHS call for `press`
+- recomputed every right-hand side (RHS) call for `press`
 
-### 2.3 Pressure BCs By Step
+### 2.3 Pressure BCs by step
 
 The axial pressure BCs, assembled by `ColumnModelMoL.set_bc()` in
 [`core/column_model.py`](../../src/pydac/core/column_model.py), are:
@@ -124,7 +124,7 @@ Important implementation detail:
 
 ### 2.4 Radial BCs
 
-| Equation | Centre (`r=0`) | Wall (`r=R_b`) |
+| Equation | Center (`r=0`) | Wall (`r=R_b`) |
 |----------|----------------|----------------|
 | Species | Zero gradient | Zero gradient |
 | Pressure | Zero gradient | Zero gradient |
@@ -132,7 +132,7 @@ Important implementation detail:
 | Bed temperature, 1D (`Nr=1`) | Not used explicitly | Wall coupling moved into a source term |
 | Wall temperature | Axial zero gradient at both ends | Separate 1D wall equation, coupled to the jacket temperature $T_j$ |
 
-### 2.5 Velocity Treatment
+### 2.5 Velocity treatment
 
 Axial and radial velocities are recovered algebraically from the selected
 pressure law and then constrained according to the physical step:
@@ -145,22 +145,22 @@ pressure law and then constrained according to the physical step:
 | `press` | Inlet velocity comes directly from the selected pressure law + Robin pressure BC | Outlet velocity forced to zero |
 
 The radial velocity is zero everywhere in 1D. In 2D it is recovered in the
-interior and set to zero at the centreline and at the impermeable wall, in every
+interior and set to zero at the centerline and at the impermeable wall, in every
 step.
 
-### 2.6 Inlet-Flux Modes
+### 2.6 Inlet-flux modes
 
 | Mode | Steps | How the inlet is handled |
 |------|-------|--------------------------|
-| Fixed-feed flux | `startup`, `ads`, `s_purge`, `s_des` | Inlet fluxes are computed once from the prescribed feed state and inlet flow input; in 2D the total may be distributed over the radial rings with area-normalised weights |
+| Fixed-feed flux | `startup`, `ads`, `s_purge`, `s_des` | Inlet fluxes are computed once from the prescribed feed state and inlet flow input; in 2D the total may be distributed over the radial rings with area-normalized weights |
 | Closed inlet | `blow`, `heat`, `w_purge`, `w_des`, `cool` | With the built-in zero flow the inlet fluxes are zero; the inlet velocity is clamped to zero by step |
 | Pressure-driven inlet | `press` | Inlet fluxes are rebuilt every RHS call from the current, pressure-derived local inlet velocity; no ring weights are imposed |
 
 ---
 
-## 3. Time-Based And Event-Based Stopping
+## 3. Time-based and event-based stopping
 
-### 3.1 General Mechanism
+### 3.1 General mechanism
 
 Every step defines a nominal horizon (`horizon.nominal_time_s`) and a maximum
 horizon for event mode (`horizon.event_max_time_s`). The solver then follows one
@@ -186,7 +186,7 @@ with `execution.termination_mode`; a CSS cycle with
 `execution.cycle_options[n].termination_mode`, whose nested `step_options` take
 precedence; a step run per step with `execution.step_options`.
 
-### 3.2 Supported Event Metrics
+### 3.2 Supported event metrics
 
 The current event-capable metrics are:
 
@@ -255,7 +255,7 @@ It refuses every plateau field on a step that never reads it: the switch and the
 tolerance off `blow` and `press`, `pressure_plateau_arm_above_Pa` on `blow`,
 `pressure_plateau_arm_below_Pa` on `press`.
 
-### 3.3 Event Stop Rules
+### 3.3 Event stop rules
 
 Values below are the shipped defaults from
 [`inputs/defaults/steps.py`](../../src/pydac/inputs/defaults/steps.py). The **default
@@ -297,7 +297,7 @@ definitions.
 
 ---
 
-## 4. Step-By-Step Details
+## 4. Step-by-step details
 
 ### 4.1 Startup (`startup`)
 
@@ -367,7 +367,7 @@ Implementation note (applies to `press` as well):
   their configuration for later event-mode runs
 - pressure-target and plateau behavior are both reported in the step log
 
-### 4.4 Pre-Heating (`heat`)
+### 4.4 Heating (`heat`)
 
 **Purpose:** heat the bed before desorption.
 
@@ -387,7 +387,7 @@ Important implementation detail:
 - `T_cond` is a pressure-dependent condensation temperature evaluated from `p_feed`
 - a fixed-duration run can force this step to time mode while keeping the temperature event definition available
 
-### 4.5 Wall Purge (`w_purge`)
+### 4.5 Wall purge (`w_purge`)
 
 **Purpose:** pre-heat the evacuated bed with the hot wall until oxygen has
 fallen below the purge target, without introducing steam.
@@ -408,11 +408,11 @@ default cycle sequences. A case requiring this step must include it
 explicitly in `execution.cycle_steps`.
 
 Post-processing follows the ordinary pre-heating branch: temperature,
-vacuum-energy, and jacket-energy KPIs are retained, with no steam KPIs. By
+vacuum-energy, and jacket-energy key performance indicators (KPIs) are retained, with no steam KPIs. By
 default the outlet is vented (`mass.vented`); `outlet.collect_product` sends it
 to the product line instead ([01 — Inputs §4.2](01_inputs.md#42-a-step-ten-names-seven-groups-fixed-order)).
 
-### 4.6 Steam Purge (`s_purge`)
+### 4.6 Steam purge (`s_purge`)
 
 **Purpose:** remove oxygen from the hot evacuated bed before the main
 desorption step.
@@ -445,7 +445,7 @@ outlet); its steam still counts in the steam use and the energy. It remains
 a distinct cycle step; the regeneration (working capacity, saturation after
 desorption) ends at the last desorption step executed, whatever its outlet.
 
-### 4.7 Wall-Heated Desorption (`w_des`)
+### 4.7 Wall-heated desorption (`w_des`)
 
 **Purpose:** continue desorption under vacuum without a purge gas.
 
@@ -463,7 +463,7 @@ Compared with `heat`:
 - `w_des` defaults to a CO₂-loading event
 - `heat` has a `T_cond` temperature event but defaults to fixed-duration (time) operation
 
-### 4.8 Steam-Assisted Desorption (`s_des`)
+### 4.8 Steam-assisted desorption (`s_des`)
 
 **Purpose:** desorb CO2 using an explicit steam purge.
 
@@ -487,7 +487,7 @@ Practical consequence:
 - for both `s_purge` and `s_des`, steam is imposed through inlet fluxes, not
   through a pressurization-style Robin inlet pressure condition
 
-### 4.9 Cooldown (`cool`)
+### 4.9 Cooling (`cool`)
 
 **Purpose:** cool the regenerated bed before returning to adsorption conditions.
 
@@ -502,7 +502,7 @@ Implementation summary:
 Cooldown preserves the inherited gas, adsorbed and temperature profiles.
 `relax_cool_hydraulics` and `flatten_cool_axial_profiles` are internal flags set to
 false; the step does not pre-flatten the state or replace it with uniform pressure.
-Internal axial/radial redistribution is resolved by the PDE under sealed boundaries.
+Internal axial/radial redistribution is resolved by the partial differential equation (PDE) system under sealed boundaries.
 By default the step is event-driven: it ends when `max_bed_temperature` goes below
 `323.15 K`, with a maximum horizon of `10800 s`. In time mode it runs for
 `steps.cool.horizon.nominal_time_s` (`9000 s`).
@@ -542,7 +542,7 @@ Important note:
 
 ---
 
-## 5. Practical Implications
+## 5. Practical implications
 
 - A step run switches a step between `termination_mode = "time"` and `"event"`
   with `execution.step_options`; a CSS run uses

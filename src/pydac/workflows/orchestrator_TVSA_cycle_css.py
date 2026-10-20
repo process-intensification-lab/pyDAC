@@ -7,8 +7,6 @@ and consolidated cycle-level logging.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
 
 import os
@@ -32,6 +30,7 @@ from pydac.config import ExperimentConfig
 from pydac.config.launch import resolve_experiment_config
 from pydac.config.loader import write_resolved_config
 from pydac.utils.logger import log_file
+from pydac.utils.paths import display_path
 from pydac.utils.tvsa import build_repeating_cycle_steps
 from pydac.utils.css import (
     create_cycle_folder,
@@ -179,7 +178,7 @@ def run_css_simulation(
         also_stdout=print_to_terminal,
         append=resume_from_cycle is not None,
     ):
-        print(f"Overall CSS log will be saved in: {overall_log_path}")
+        print(f"Overall CSS log will be saved in: {display_path(overall_log_path)}")
         print(f"Persistence policy: {persistence_policy}")
 
         prev_prof = None

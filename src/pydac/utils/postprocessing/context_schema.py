@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+import re
 from numbers import Real
 
 import numpy as np
 import pandas as pd
 
 
-SIMULATION_CONTEXT_SCHEMA_VERSION = 2
+SIMULATION_CONTEXT_SCHEMA_VERSION = 3
 SIMULATION_CONTEXT_COLUMNS = (
     "Category",
     "Parameter ID",
@@ -67,7 +68,8 @@ ARCHITECTURE_STATIC_PARAMETERS = {
 }
 
 BASE_STEP_PARAMETERS = (
-    ContextParameter("models", "bed.models.heat_transfer", "-", "text"),
+    ContextParameter("models", "bed.models.wall_htc", "-", "text"),
+    ContextParameter("models", "bed.models.overall_wall_htc", "-", "text"),
     ContextParameter("models", "bed.models.pressure_drop", "-", "text"),
     ContextParameter("models", "bed.models.dispersion", "-", "text"),
     ContextParameter("transport", "bed.resolved.lambda_ax", "W/m/K"),
@@ -111,6 +113,18 @@ BASE_STEP_PARAMETERS = (
         "text",
     ),
 )
+
+# A saved context of a session-registered architecture is read without its
+# registration: its static rows outside the common set are checked by form only.
+# The middle segment of the ID is the category and fixes the value type.
+# The marker row repeats the architecture name; a non-built-in name is read only
+# with it, so a misspelled or renamed built-in context is refused.
+REGISTERED_ARCHITECTURE_MARKER = ContextParameter(
+    "bed", "bed.registered_architecture", "-", "text"
+)
+_REGISTERED_ARCHITECTURE_NAME = re.compile(r"[a-z][a-z0-9_]*\Z")
+_REGISTERED_ROW_ID = re.compile(r"bed\.(design|material|provenance)\.[a-z][a-z0-9_]*\Z")
+_REGISTERED_ROW_TYPES = {"design": "number", "material": "number", "provenance": "text"}
 
 COMMON_STATIC_BY_ID = {
     definition.parameter_id: definition
@@ -217,6 +231,80 @@ def context_definition_row(definition, value, *, step=STATIC_STEP):
     }
 
 
+def _registered_static_definitions(table, architecture):
+    """Definitions of a non-built-in architecture's saved rows, by form only.
+
+    The current registry is never consulted: a changed or missing registration
+    must not reinterpret saved data. Rows keep their saved order.
+    """
+    if not _REGISTERED_ARCHITECTURE_NAME.match(architecture):
+        raise ValueError(
+            f"Unsupported saved bed architecture '{architecture}'."
+        )
+    marker_id = REGISTERED_ARCHITECTURE_MARKER.parameter_id
+    rows = table.loc[
+        table["Step"].eq(STATIC_STEP)
+        & ~table["Parameter ID"].isin(COMMON_STATIC_BY_ID)
+    ]
+    marker = rows.loc[rows["Parameter ID"].eq(marker_id), "Value"]
+    if len(marker) != 1:
+        raise ValueError(
+            f"Unsupported saved bed architecture '{architecture}': it is not a "
+            f"built-in name, and the context has no '{marker_id}' row of a "
+            "registered architecture."
+        )
+    marked = marker.iloc[0]
+    if not isinstance(marked, str) or marked.strip().lower() != architecture:
+        raise ValueError(
+            f"Saved '{marker_id}' ({marked!r}) does not match "
+            f"bed.architecture ('{architecture}')."
+        )
+    definitions = {marker_id: REGISTERED_ARCHITECTURE_MARKER}
+    rows = rows.loc[rows["Parameter ID"].ne(marker_id)]
+    for parameter_id, unit in zip(rows["Parameter ID"], rows["Unit"]):
+        match = _REGISTERED_ROW_ID.match(parameter_id)
+        if match is None:
+            raise ValueError(
+                f"Saved static parameter '{parameter_id}' of bed architecture "
+                f"'{architecture}' must be bed.design.<key>, bed.material.<key> "
+                "or bed.provenance.<key>."
+            )
+        if not unit:
+            raise ValueError(f"Parameter '{parameter_id}' needs a nonempty unit.")
+        category = match.group(1)
+        definitions[parameter_id] = ContextParameter(
+            category, parameter_id, unit, _REGISTERED_ROW_TYPES[category]
+        )
+    return definitions
+
+
+def upgrade_simulation_context_v2(dataframe):
+    """Return a version-2 context table (pyDAC 3.0.x) in the version-3 rows.
+
+    Version 2 had one row, ``bed.models.heat_transfer``, holding the lumped 1D
+    coefficient's name even in 2D. It becomes ``bed.models.overall_wall_htc``
+    (``none`` for a 2D run, which has no lumped coefficient), and
+    ``bed.models.wall_htc`` reads ``unrecorded``: version 2 did not save the
+    law of the bed-side coefficient.
+    """
+    if not isinstance(dataframe, pd.DataFrame):
+        raise TypeError("dataframe must be a pandas DataFrame.")
+    table = dataframe.copy(deep=True)
+    ids = table["Parameter ID"].astype(str).str.strip().str.lower()
+    nr = table.loc[ids.eq("grid.nr"), "Value"]
+    is_2d = len(nr) == 1 and float(nr.iloc[0]) > 1
+    old = ids.eq("bed.models.heat_transfer")
+    wall = table.loc[old].copy()
+    wall["Parameter ID"] = "bed.models.wall_htc"
+    wall["Value"] = "unrecorded"
+    table.loc[old, "Parameter ID"] = "bed.models.overall_wall_htc"
+    if is_2d:
+        table.loc[old, "Value"] = "none"
+    table = pd.concat([table, wall], ignore_index=True)
+    table.attrs = {**dataframe.attrs, "schema_version": SIMULATION_CONTEXT_SCHEMA_VERSION}
+    return table
+
+
 def validate_simulation_context_dataframe(dataframe):
     """Return one normalized DataFrame conforming to the current schema."""
     if not isinstance(dataframe, pd.DataFrame):
@@ -266,9 +354,11 @@ def validate_simulation_context_dataframe(dataframe):
         architecture_rows.iloc[0],
         "bed.architecture",
     ).lower()
-    if architecture not in ARCHITECTURE_STATIC_BY_ID:
-        raise ValueError(
-            f"Unsupported saved bed architecture '{architecture}'."
+    if architecture in ARCHITECTURE_STATIC_BY_ID:
+        architecture_definitions = ARCHITECTURE_STATIC_BY_ID[architecture]
+    else:
+        architecture_definitions = _registered_static_definitions(
+            table, architecture
         )
     table.loc[
         table["Parameter ID"].eq("bed.architecture"),
@@ -277,7 +367,7 @@ def validate_simulation_context_dataframe(dataframe):
 
     static_definitions = {
         **COMMON_STATIC_BY_ID,
-        **ARCHITECTURE_STATIC_BY_ID[architecture],
+        **architecture_definitions,
     }
     static_rows = table.loc[table["Step"].eq(STATIC_STEP)]
     actual_static_ids = set(static_rows["Parameter ID"])
@@ -383,7 +473,11 @@ def validate_simulation_context_dataframe(dataframe):
     for parameter_id in (
         "bed.design.eps_b",
     ):
-        if parameter_id in numeric and not 0.0 < numeric[parameter_id] < 1.0:
+        if (
+            architecture == "packed_bed"
+            and parameter_id in numeric
+            and not 0.0 < numeric[parameter_id] < 1.0
+        ):
             raise ValueError(f"'{parameter_id}' must be in (0, 1).")
     positive_step_parameters = {
         "bed.resolved.lambda_ax",

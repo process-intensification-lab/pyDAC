@@ -1,5 +1,5 @@
 ---
-title: "04 — Governing Equations: what pyDAC solves, and where"
+title: "04 — Governing equations: what pyDAC solves, and where"
 toc: true
 toc-depth: 3
 embed-resources: true
@@ -15,7 +15,7 @@ This chapter maps the integrated balances, transport closures, bed-wall coupling
 equilibrium and kinetics to their implementation. It documents the configuration
 and runtime quantities needed to interpret a simulation.
 
-For discretisation see [03 — pymrm discretisation](03_pymrm_discretization.md);
+For discretization see [03 — pymrm discretization](03_pymrm_discretization.md);
 for boundary conditions see [05 — Cycle steps](05_cycle_steps.md); for model
 construction see [02 — pyDAC core](02_pydac_core.md).
 
@@ -24,10 +24,10 @@ construction see [02 — pyDAC core](02_pydac_core.md).
 The solver advances the named `StateLayout` in nondimensional time. Independent gas
 concentrations, adsorbate loadings, total concentration, bed temperature, wall temperature
 and integrated mass/energy states are generated from the declared mixture and adsorbates.
-Offsets are shared by initialization, RHS, solver, sparsity and saved-solution readers;
+Offsets are shared by initialization, right-hand side (RHS), solver, sparsity and saved-solution readers;
 there is no pending fixed-layout migration.
 
-For the default DAC mixture the independent gases are CO2, H2O and O2, the closure
+For the default direct air capture (DAC) mixture the independent gases are CO2, H2O and O2, the closure
 species is N2, and the adsorbates are CO2 and H2O. Other declared mixtures may include
 N2 adsorption. Closure concentration equals total concentration minus the independent
 species. `ColumnModelMoL.pde_system_kpis` assembles the balances.
@@ -42,7 +42,7 @@ species. `ColumnModelMoL.pde_system_kpis` assembles the balances.
 |---|---|
 | non-dim total mole balance | [`pde_system_kpis()`](../../src/pydac/core/column_model.py), stage 3 |
 | non-dim species balance | [`pde_system_kpis()`](../../src/pydac/core/column_model.py), stage 4, with [`_corrected_species_dispersion_flux()`](../../src/pydac/core/column_model.py) |
-| LDF solid-phase balance, with the low-pressure damping | [`_evaluate_adsorption_rates()`](../../src/pydac/core/column_model.py) → [`LDFRate.loading_rates_mol_per_kg_s()`](../../src/pydac/core/kinetic_models.py) |
+| Linear driving force (LDF) solid-phase balance, with the low-pressure damping | [`_evaluate_adsorption_rates()`](../../src/pydac/core/column_model.py) → [`LDFRate.loading_rates_mol_per_kg_s()`](../../src/pydac/core/kinetic_models.py) |
 | inversion of the pressure-drop law for the velocity | [`update_velocity_fields()`](../../src/pydac/core/column_model.py) → [`ErgunPressureDrop.velocity_from_gradient()`](../../src/pydac/core/bed_architectures/packed_bed.py), [`solve_quadratic_drag_velocity()`](../../src/pydac/core/bed_architectures/packed_bed.py) |
 | 2D bed↔wall Robin coupling | [`pde_system_kpis()`](../../src/pydac/core/column_model.py), stage 5 |
 | 1D bed↔wall source term | [`calc_nondim_pde_params()`](../../src/pydac/core/column_model.py) (`omega_wall`), [`pde_system_kpis()`](../../src/pydac/core/column_model.py), stage 5 |
@@ -76,7 +76,7 @@ gas or solid factor.
 
 As in the pyDAC [paper](https://doi.org/10.26434/chemrxiv.15010382/v1) (SI, scaled energy equation), the energy equation is made dimensionless in
 its independent variables and in temperature only: ⟨ρc_p⟩_eff, Ω_a, ω_p, λ̄_ax, λ̄_rad and
-ω_wall keep units J/(m³ K) and are not normalised by a reference heat capacity. The code
+ω_wall keep units J/(m³ K) and are not normalized by a reference heat capacity. The code
 attribute names `inv_Pe_h_*` are historical.
 
 The L/R_b geometric anisotropy factor of the radial material-dispersion term is
@@ -86,7 +86,7 @@ applied when the operators are built, not when the groups are computed
 Here the subscript ``m`` denotes the material Péclet number. The molecular
 diffusivity ``D_m`` enters the selected dispersion closure through the Schmidt
 number, while ``D_disp`` denotes the resulting effective material-dispersion
-coefficient used in the PDE groups.
+coefficient used in the partial differential equation (PDE) groups.
 
 ### 3.3 Closures and properties
 
@@ -109,7 +109,7 @@ coefficient used in the PDE groups.
 
 All per-species arrays follow the declared mixture order. The terminal summary
 and schema-v1 `resolved_runtime.json` read the same unit-bearing values stored
-in `model.runtime_properties`. The JSON additionally records provenance, the
+in `model.runtime_properties`. The JavaScript Object Notation (JSON) file additionally records provenance, the
 selected models, the species catalog, `StateLayout` and the evaluation state,
 plus a reference to the step's spatial solution: the full trajectory in
 `sol.pkl`, or only the terminal state in `terminal.pkl` under the compact
@@ -176,12 +176,12 @@ condition of the pyDAC [paper](https://doi.org/10.26434/chemrxiv.15010382/v1) (S
 $$\left.\frac{1}{Bi_w}\frac{\partial \tilde T}{\partial R}\right|_{R=1} + \tilde T\big|_{R=1} = \tilde T_w$$
 
 The wall balance must then debit exactly the flux the bed receives. It does not
-use the outer *cell-centre* temperature but the reconstructed **face**
-temperature, with the same second-order stencil pymrm applies to the Robin BC
+use the outer *cell-center* temperature but the reconstructed **face**
+temperature, with the same second-order stencil pymrm applies to the Robin boundary condition (BC)
 (stencil weights `wall_face_c_*` in
 [`calc_nondim_pde_params()`](../../src/pydac/core/column_model.py), used in [`pde_system_kpis()`](../../src/pydac/core/column_model.py), stage 5). Without this bed and wall
 would exchange different amounts of heat (the sign depends on the heat-flow direction
-and the radial profile) and the coupled discretisation would not be
+and the radial profile) and the coupled discretization would not be
 energy-conserving.
 
 ### 5.2 Bed↔wall coupling in 1D
@@ -211,7 +211,7 @@ the 2D one, for `h_w`; each is refused on the other grid), while the physically 
 
 ### 5.3 Closures without through-flow
 
-Most TVSA steps have no through-flow (Re = 0):
+Most temperature-vacuum swing adsorption (TVSA) steps have no through-flow (Re = 0):
 
 | Closure | At Re = 0 | Code |
 |---|---|---|
@@ -233,7 +233,7 @@ The equilibrium and kinetic implementations are:
 | Species | Equilibrium | Code |
 |---|---|---|
 | CO₂ | Toth, with optional WADST wet co-adsorption blend driven by the H₂O loading | [`TothIsotherm`](../../src/pydac/core/isotherm_models.py), [`TothGABWADSTEquilibriumSystem`](../../src/pydac/core/isotherm_models.py) |
-| H₂O | GAB, with IAPWS-1995 saturation pressure; fitted up to RH = 0.9 (a `RuntimeWarning` reports the first evaluation above it), RH kept 1 % below the GAB pole 1/k | [`GABIsotherm`](../../src/pydac/core/isotherm_models.py), [`water_saturation_pressure()`](../../src/pydac/core/isotherm_models.py) |
+| H₂O | Guggenheim–Anderson–de Boer (GAB), with IAPWS-1995 saturation pressure; fitted up to RH = 0.9 (a `RuntimeWarning` reports the first evaluation above it), RH kept 1 % below the GAB pole 1/k | [`GABIsotherm`](../../src/pydac/core/isotherm_models.py), [`water_saturation_pressure()`](../../src/pydac/core/isotherm_models.py) |
 | CO₂/N₂ | competitive Sips (not used by the DAC default) | [`CompetitiveSipsEquilibriumSystem`](../../src/pydac/core/isotherm_models.py) |
 
 Water's vapor pressure is a property of water, not of the sorbent model. For the RH conversion

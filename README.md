@@ -19,7 +19,7 @@ temperature-vacuum swing adsorption (TVSA) cycle. pyDAC reports process key perf
 indicators (KPIs) and optimizes operating conditions with the NSGA-II genetic algorithm
 (non-dominated sorting genetic algorithm II).
 
-pyDAC 3.0.1, development status Beta. MIT license.
+pyDAC 3.1.0, development status Beta. MIT license.
 
 > **Using pyDAC? Make sure you always run the latest version.** pyDAC is under active
 > development and new releases come out often. To be notified when a new version
@@ -227,7 +227,9 @@ supported API is the set of names in `pydac.__all__`: `load_case`, `export_case`
 `export_settings`, `run_steps`, `run_css`, `run_nsga2`, `resume`, `report`, `get_started`,
 `RunResult`, `ConfigurationError`, `RunRefused`, `ExperimentConfig`, `CycleDataLoader`,
 `CycleKPIs`, `register_equilibrium`, `register_kinetics`, `EquilibriumSystem`, `KineticLaw`,
-`EquilibriumRegistryEntry`, `KineticRegistryEntry` and the version string `__version__`.
+`EquilibriumRegistryEntry`, `KineticRegistryEntry`, `register_bed_architecture`,
+`BedArchitectureEntry`, `ClosureInputs`, `ResolvedStructure`, `ResolvedTransport`,
+`ContextParameter`, `solve_quadratic_drag_velocity` and the version string `__version__`.
 
 ## Reproducibility
 

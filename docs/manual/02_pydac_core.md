@@ -1,5 +1,5 @@
 ---
-title: "02 — pyDAC Core"
+title: "02 — pyDAC core"
 toc: true
 toc-depth: 3
 embed-resources: true
@@ -12,13 +12,13 @@ embed-resources: true
 This chapter traces a step run, `pydac steps --case PATH` or `pydac.run_steps(case)`, stage by
 stage: case resolution, the preflight, the workflow, model construction, the per-step loop and
 the solver. It is the detailed counterpart of the diagram in
-[00 — Framework Map §6](00_framework_map.md#6-what-a-run-actually-does). All paths are under
+[00 — Framework map §6](00_framework_map.md#6-what-a-run-actually-does). All paths are under
 `src/pydac/` unless stated otherwise.
 
 What an input means is in [01 — Inputs](01_inputs.md); how to run a case is in the user guide,
 [Running steps and cycles](../guide/04_running.md).
 
-## 1. Runtime Construction
+## 1. Runtime construction
 
 The resolved case is narrowed before the core sees it:
 
@@ -99,12 +99,12 @@ def check():
 planned = _preflight(check)   # ConfigurationError / RunRefused -> exit 2
 ```
 
-`api._check_fresh_run()` is the preflight shared by the command and the API:
+`api._check_fresh_run()` is the preflight shared by the command and the application programming interface (API):
 
 1. `api._validator()` selects `validate_step_case()`
    ([`utils/run/validation.py`](../../src/pydac/utils/run/validation.py)) for a step run, or
    `validate_css_case()` ([`utils/css/runner.py`](../../src/pydac/utils/css/runner.py)) for
-   a CSS run. They check the execution settings and the executed steps against the mixture;
+   a cyclic steady state (CSS) run. They check the execution settings and the executed steps against the mixture;
    the CSS check also requires a step that collects product.
 2. `warn_advanced_sparsity_options()` warns once for each diagnostic solver setting:
    `execution.use_sparsity=false`, `execution.compute_numerical_sparsity=true`, or a
@@ -132,8 +132,9 @@ make_base_folder(
 `<output_root>/<mode>/<leaf>` without creating it:
 
 - `mode` is `step_mode` for a step run and `cyclic_mode` for a CSS run;
-- `leaf` is `[<extra_tag>_]packed_bed_<hash8>`, where `hash8` is the first eight characters of
-  the case fingerprint. The full SHA-256 fingerprint is written to `case_metadata.json` (§2.7);
+- `leaf` is `[<extra_tag>_]<architecture>_<hash8>`, where `<architecture>` is
+  `simulation.bed.architecture` (`packed_bed` by default) and `hash8` is the first eight characters of
+  the case fingerprint. The full SHA-256 (Secure Hash Algorithm, 256-bit) fingerprint is written to `case_metadata.json` (§2.7);
   no setting is repeated in the name.
 
 With `extra_tag = "TEST"`:
@@ -206,14 +207,14 @@ start_activity(results_base_folder, "run", config=resolved,
                execution={"workflow": "steps", "solve": solve})
 ```
 
-`write_resolved_config()` (`config/loader.py`) writes the case as strict, indented JSON and
+`write_resolved_config()` (`config/loader.py`) writes the case as strict, indented JavaScript Object Notation (JSON) and
 calls `inputs.case_io.write_case_metadata()`, which writes `case_metadata.json` next to it;
 the fingerprint is computed on a separately canonicalized form of the case.
 `utils.provenance.start_activity()` then writes the run's provenance record into
 `provenance/`. Both happen before `TVSA_Cycle` is built: if a later step fails, the case that
 was attempted is on disk. Load it with `--case` to run the same inputs in a fresh folder, or
 continue the saved run with `--resume`. The full list of files is in
-[00 — Framework Map §7](00_framework_map.md#7-artifacts-on-disk).
+[00 — Framework map §7](00_framework_map.md#7-artifacts-on-disk).
 
 ### 2.8 Building the cycle runner
 
@@ -266,10 +267,10 @@ aliases (for example `ADSORPTION` for `ads`), each normalized to its short name 
 `normalize_step_token`
 ([01 — Inputs §2.3](01_inputs.md#23-the-one-distinction-that-causes-most-of-the-confusion)).
 With `print_cycle_build` true (the default), `_print_cycle_build_summary()` prints the sequence
-and the per-step overrides before anything solves: the block printed right after "Starting
+and the per-step settings before anything solves: the block printed right after "Starting
 Adsorption Cycle".
 
-## 3. The Per-Step Loop — `_run_step()`
+## 3. The per-step loop — `_run_step()`
 
 `run_cycle()` calls `self._run_step(step, ...)` once per step, the same way for every step
 name, with the previous step's final fields as `prev_fields`.
@@ -318,7 +319,7 @@ CycleConfig.step_config(step)        → ColumnModelConfig      (this step's sli
         ▼
 ColumnModelInput(config, components, initial_state)   (core/column_model_input.py, plain data)
         ▼
-ColumnModelMoL(column_input)                          ⚠ core/column_model.py, maintainer review
+ColumnModelMoL(column_input)                            core/column_model.py, maintainer review
 ```
 
 `CycleConfig.step_config(step)` ([`config/cycle.py`](../../src/pydac/config/cycle.py))
@@ -348,7 +349,7 @@ With event termination and `stop_on_pressure_plateau=true`, blowdown and pressur
 pressure-rate plateau fallback to their configured primary event, from
 [`utils/solver/pressure_plateau.py`](../../src/pydac/utils/solver/pressure_plateau.py).
 The blowdown fallback evaluates `-d(mean(p/p_ref))/d(t/tau_hyd)` and the pressurization
-fallback evaluates `d(mean(p/p_ref))/d(t/tau_hyd)` from the RHS. Their `50000 Pa` settings are
+fallback evaluates `d(mean(p/p_ref))/d(t/tau_hyd)` from the right-hand side (RHS). Their `50000 Pa` settings are
 stored and printed separately as arming conditions; the terminal threshold stored in
 `sol.pkl` remains the rate tolerance (`1e-5`), never the arming pressure.
 
@@ -372,7 +373,7 @@ if solve:
 ```
 
 - `SimulationContext.from_model()` captures the resolved static parameters and this step's
-  operating parameters in one canonical table. Post-processing (cycle KPIs, NSGA-II reports)
+  operating parameters in one canonical table. Post-processing (cycle key performance indicators (KPIs), non-dominated sorting genetic algorithm II (NSGA-II) reports)
   reads it back later, independently of `resolved_config.json`.
 - `validate_compatible(...)` is why the steps of one cycle can share a folder (their contexts
   merge and must agree), while reusing a folder for a different case fails loudly instead of
@@ -381,7 +382,7 @@ if solve:
   catalog data, the evaluation state, and unit-bearing scalar, per-species and pairwise
   properties as readable JSON. Spatial histories stay in `<step>/sol.pkl`.
 - `solver.solve_cvode()` writes the step's solve record into `<step>/provenance/`, builds the
-  CVODE options (BDF, positivity constraints, per-block tolerances, the event callback if
+  CVODE options (backward differentiation formula (BDF), positivity constraints, per-block tolerances, the event callback if
   any), integrates, and keeps the trajectory in `solver.sol`.
 - `solver.save_results()` reshapes and re-dimensionalizes `sol["y"]` into
   `y_2d`/`y_1d`/`y_scalars`, converts time back to seconds, and saves everything (with
@@ -426,7 +427,7 @@ otherwise loads the saved result through `solver.load_results()`; it extracts th
 fields and derives the reporting quantities from them. `.describe()` prints the console
 summary (bed length and diameter, loading and temperature ranges, termination reason, net mass
 change). `.compute_step_metrics(step_name)` computes the typed `StepMetrics` of the step; the
-formulas are in [06 — Post-Processing](06_post_processing.md). `StepMetricsStore` prints a
+formulas are in [06 — Post-processing](06_post_processing.md). `StepMetricsStore` prints a
 sorted table and writes `<step>/kpis.pkl`, `<step>/kpis.csv` and `metrics_provenance.json`.
 
 **h) Plot, if this step should be plotted:**
@@ -466,7 +467,7 @@ per-step timing table (`_print_cycle_completion`, `_print_cycle_timing_summary`)
 `api._solve_steps()` prints the run folder again and returns a `RunResult` with the run folder
 and the results folder, and the command exits with code `0`.
 
-## 4. Solve vs. Reuse, Per Step
+## 4. Solve vs. reuse, per step
 
 `solve`, `plot_profiles`, `use_sparsity`, `compute_numerical_sparsity` and `termination_mode`
 have a value for the whole sequence (`execution.*`) that `execution.step_options` can change
@@ -488,14 +489,14 @@ Post-processing (§3.g) runs for every step either way.
 In a CSS run there is no top-level `step_options`: per-step control lives in
 `execution.cycle_options[n]["step_options"]`.
 
-## 5. Log Files vs. Terminal
+## 5. Log files vs. terminal
 
 Every step writes its own `log.txt` (§3.b). With `print_to_terminal=true` (the default) you see
 everything live and it is also written to disk; the log is a byproduct of a normal run, useful
 for comparing what two runs printed without running them again. A CSS run also keeps one
 overall `log.txt` in the results folder, covering the whole cycle loop.
 
-## 6. Column Model Initialization
+## 6. Column model initialization
 
 `ColumnModelMoL` accepts exactly one `ColumnModelInput`. Public inputs become model attributes
 in `ColumnModelMoL._bind_inputs()` through explicit named assignments. Changes there are under
@@ -529,7 +530,7 @@ __init__(column_input)
   └── _print_runtime_property_summary()
 ```
 
-## 7. Where One Public Input Reaches The Physics
+## 7. Where one public input reaches the physics
 
 The full narrowing chain for one value, `steps.s_des.flow.steam_mass_flow_kg_s`:
 
@@ -540,16 +541,16 @@ inputs/defaults/steps.py            (the default, or --set / a preset / a frozen
   → CycleConfig.from_experiment(...)   (config/cycle.py)    same value, runtime view
   → CycleConfig.step_config("s_des")                       ColumnModelConfig for this step
   → ColumnModelInput.config                                (core/column_model_input.py)
-  → ColumnModelMoL._bind_inputs()                          ⚠ core/column_model.py
+  → ColumnModelMoL._bind_inputs()                            core/column_model.py, maintainer review
   → self.m_dot_steam
   → _resolve_inlet_velocity(): self.vol_flowrate = self.m_dot_steam / self.rho_steam_inlet,
     then the inlet velocity, at model setup
 ```
 
-This is the chain of [00 — Framework Map §5](00_framework_map.md#5-runtime-configuration-boundary)
+This is the chain of [00 — Framework map §5](00_framework_map.md#5-runtime-configuration-boundary)
 with the file and function at each arrow.
 
-## 8. State Vector Layout
+## 8. State vector layout
 
 `StateLayout` ([`core/state_layout.py`](../../src/pydac/core/state_layout.py)) generates
 the complete order from the declared mixture and grid:
@@ -565,7 +566,7 @@ constraint policy and tolerance group. Solver packing, dimensional export, post-
 events and sparsity all use that same layout and its grid-sensitive signature; none of them
 computes offsets on its own.
 
-## 9. RHS Evaluation
+## 9. RHS evaluation
 
 At each RHS call, `pde_system_kpis()`:
 
@@ -581,7 +582,13 @@ At each RHS call, `pde_system_kpis()`:
    buffer, or the buffer the caller passes).
 
 The model uses `core/bed_architectures/` for packed-bed structure, momentum, dispersion, and
-thermal closures in both 1D and 2D.
+thermal closures in both 1D and 2D. A bed architecture registered at run time
+([guide 08](../guide/08_extending.md#a-bed-architecture)) enters at the same four seams:
+`_resolve_bed_structure` and the three dispatchers `_resolve_bed_pressure_drop`,
+`_resolve_bed_dispersion` and `_resolve_bed_thermal_transport` call the packed-bed methods when
+`bed_architecture_provider` is `None`, and otherwise the checked wrapper the model was built
+with, binding its results to the same attributes (`inv_Pe_h_*` from its conductivities,
+`h_int` from `wall_bed_htc` in 1D and `h_wall` in 2D).
 
 The 2D momentum closure uses isotropic vector drag. Axial and radial convection use
 conservative face fluxes; radial convective and dispersive mass fluxes vanish at the axis
@@ -617,12 +624,12 @@ all rows of the analytical mask, for diagnostics.
 The mask is generated in memory from the state layout and cached by layout (an LRU cache of 64
 entries; every request returns a copy), so the steps of one grid reuse it. No mask is shipped
 with the package, read from disk or written. To look at it, draw it with
-`python -m pydac.core.sparsity_patterns.analytical_sparsity --nz <nz> --nr <nr> --out <folder>`.
+`python -m pydac.core.sparsity_patterns.analytical_sparsity --nz NZ --nr NR --out FOLDER`.
 
 The finite-difference diagnostic `execution.compute_numerical_sparsity=true` (default `false`;
 slow, dense Jacobians) saves snapshots into the step folder,
 `<step>/numerical_jacobian/jacobian_sparsity_<tick>.npy`.
-`python -m pydac.core.sparsity_patterns.numerical_sparsity <step folder> --nz <nz> --nr <nr>`
+`python -m pydac.core.sparsity_patterns.numerical_sparsity STEP_FOLDER --nz NZ --nr NR`
 unions them, draws the union and fails if a numerically found coupling is missing from the
 analytical mask.
 

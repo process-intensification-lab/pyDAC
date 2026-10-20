@@ -17,7 +17,7 @@ what, and how to extend the contract. To write and run cases, read the user guid
 | If you want to | Go to |
 |---|---|
 | Understand how a case is built | §1, §2 |
-| Know where the command, the API and the clone launchers enter | §3 |
+| Know where the command, the application programming interface (API) and the clone launchers enter | §3 |
 | Know what a field means | §4 |
 | Know what an explicit `null` does | §5 |
 | Know which module owns what | §6 |
@@ -33,7 +33,7 @@ There is one configuration pipeline. What changes is only where the values come 
 
 - **Built case.** The built-in defaults under
   [`src/pydac/inputs/defaults/`](../../src/pydac/inputs/defaults/), then an optional
-  partial or complete JSON preset (`--config PATH`, `pydac.load_case(PATH)`), then settings,
+  partial or complete JavaScript Object Notation (JSON) preset (`--config PATH`, `pydac.load_case(PATH)`), then settings,
   one dotted path each (`--set PATH=VALUE`, `pydac.load_case(..., settings={...})`). Each
   source overrides the one before.
 - **Frozen case.** A complete JSON case (`--case PATH`, `pydac.load_case(PATH, exact=True)`)
@@ -56,7 +56,7 @@ Two consequences:
 1. **The built-in defaults live in `src/pydac/inputs/defaults/`,** not in the configuration
    engine or in the model. The resolved JSON document is the compiled snapshot of one case,
    not the source of the defaults.
-2. **The document that ran is always saved.** A step or CSS run writes `resolved_config.json`
+2. **The document that ran is always saved.** A step or cyclic steady state (CSS) run writes `resolved_config.json`
    and `case_metadata.json` (its fingerprint) in its results folder (`1D_mode/` or `2D_mode/`);
    a campaign writes its base case in the campaign folder. A candidate's case is written in its
    evaluation folder for the run and pruned afterwards; its compact record keeps the complete
@@ -184,10 +184,10 @@ are the same token:
 | `press` | `press`, `pressurization`, `pressurisation` |
 
 The canonical key on the left is what appears in folder names, `step_options` keys and
-settings paths. The step KPI tables use display labels instead (`adsorption`, `preheating`,
+settings paths. The step key performance indicator (KPI) tables use display labels instead (`adsorption`, `preheating`,
 `cooldown`, …, from `StepPostProcessor.compute_step_metrics()`). The generic tokens `des` and `desorption` are refused on purpose: the
 desorption mode must be stated explicitly
-([05 — Cycle Steps §1.2](05_cycle_steps.md#12-explicit-desorption-choice)).
+([05 — Cycle steps §1.2](05_cycle_steps.md#12-explicit-desorption-choice)).
 
 ### 2.4 The live settings catalog
 
@@ -283,7 +283,7 @@ The API calls two workflows, one per run mode:
 
 They are internal: reachable, but not part of the supported API, and their keyword arguments
 (for example the persistence and composition-guard options `run_css_simulation()` takes for
-NSGA-II candidates) may change without notice. Both take the resolved case and an optional
+non-dominated sorting genetic algorithm II (NSGA-II) candidates) may change without notice. Both take the resolved case and an optional
 `base_folder`, through
 [`src/pydac/config/launch.py`](../../src/pydac/config/launch.py)
 (`resolve_experiment_config`).
@@ -295,7 +295,7 @@ read all of them from `execution.*` of the resolved case. That is what makes the
 are written (`execution.output_root` when omitted).
 
 The repeating CSS sequence must start with adsorption; in cycle 1 that leading step is
-replaced by startup ([05 — Cycle Steps §1.1](05_cycle_steps.md#11-default-sequences-in-code)).
+replaced by startup ([05 — Cycle steps §1.1](05_cycle_steps.md#11-default-sequences-in-code)).
 Per-cycle control in a CSS run lives in `execution.cycle_options[n]["step_options"]` (§4.4).
 
 ---
@@ -310,7 +310,7 @@ Per-cycle control in a CSS run lives in `execution.cycle_options[n]["step_option
 | `solver` | `rtol`, `atol`, `atol_scalar_mass`, `atol_scalar_energy` | CVODE tolerances; defaults `1e-8`, `1e-10`, `1e-8`, `1e-6` |
 | `bed` | `architecture`, `design`, `material` | `null` gives the default packed bed owned by `core/bed_architectures` (§4.6) |
 | `geometry` | `specified_by`, `aspect_ratio`, `volume_m3`, `length_m`, `radius_m` | one pair is given, the other computed (§4.3) |
-| `wall` | `thickness_m`, `specific_heat_J_kgK`, `density_kg_m3`, `conductivity_W_mK`, `overall_htc_override_W_m2K`, `bed_wall_htc_override_W_m2K` | the overrides bypass the heat-transfer correlations: `overall_htc_override_W_m2K` replaces the 1D overall (Dixon) coefficient `U_w`, `bed_wall_htc_override_W_m2K` the 2D bed-side `h_w`; a case that sets one on the other grid is refused |
+| `wall` | `thickness_m`, `specific_heat_J_kgK`, `density_kg_m3`, `conductivity_W_mK`, `overall_htc_override_W_m2K`, `bed_wall_htc_override_W_m2K` | the two explicit coefficients bypass the heat-transfer correlations: `overall_htc_override_W_m2K` replaces the 1D overall (Dixon) coefficient `U_w`, `bed_wall_htc_override_W_m2K` the 2D bed-side `h_w`; a case that sets one on the other grid is refused |
 | `sorbent` | `conductivity_W_mK`, `density_kg_m3`, `particle_radius_m`, `porosity`, `pore_radius_m`; species-keyed `heats_of_adsorption_J_mol`; `heat_capacity`; species-keyed `fixed_adsorbates` | a heat for every species of `mixture.adsorbates` (others are ignored), each **negative** (exothermic convention); `heat_capacity` is `{"model": "Low2023", "parameters": {a_J_K_per_kg, b_J_per_kgK2, c_J_per_kgK}}` (the default, Lewatit) or `{"model": "constant", "parameters": {"value_J_kgK": …}}`, evaluated at each step's feed temperature; `fixed_adsorbates` (default `{}`) are loadings that only add heat capacity, each `{loading_mol_per_kg, heat_capacity_J_molK}`. The three mappings are replaced wholesale, like `kinetics` |
 | `mixture` | ordered `species`, one `closure_species`, ordered `adsorbates` | molecular constants come from the species catalog; a case never states state indices or duplicate constants |
 | `adsorption` | model-name keyed `equilibrium_systems`; species-keyed `kinetics` | each selection states datasets and unit-bearing parameters, for example `k_LDF_s_inv` |
@@ -404,11 +404,15 @@ The group order is part of the contract:
 | `termination` | `mode`, `metric`, `direction`, `threshold_value`, `threshold_source`, `threshold_offset`, `label`, `stop_on_low_pressure`, `low_pressure_stop_Pa`, `stop_on_pressure_plateau`, `pressure_plateau_rate_tolerance_nd`, `pressure_plateau_arm_below_Pa`, `pressure_plateau_arm_above_Pa` |
 | `outlet` | `collect_product`, `condenser`, `condenser_temperature_K` |
 
+`external_htc_W_m2K` is the outer-wall to jacket coefficient; `0` makes the outer wall
+adiabatic (the wall keeps its heat capacity and still exchanges heat with the bed, and
+`E_jacket` stays zero), while `null` inherits the default 1000 W/m2K.
+
 `outlet` says where the step's outlet stream goes; it changes the post-processing and the
 cycle KPIs, never the solved column. With `collect_product = true` the stream enters the
 product line: a condenser at `condenser_temperature_K` when `condenser = true`, then the
 vacuum pump and the vacuum-discharge flash
-([06 — Post-Processing §9](06_post_processing.md#9-separator-and-product-treatment)). With
+([06 — Post-processing §9](06_post_processing.md#9-separator-and-product-treatment)). With
 `collect_product = false` the stream is vented and reported as `mass.vented`. Defaults:
 collected through a 278.15 K condenser on `s_purge`, `w_des` and `s_des`; vented on `blow`,
 `heat` and `w_purge`. `startup` and `ads` discharge to the atmosphere and `cool` and `press`
@@ -447,7 +451,7 @@ Two things about `pressure` that are easy to get wrong:
 A `mode: "event"` step stops when `metric` crosses its threshold in `direction`;
 `event_max_time_s` is the fallback horizon. A `mode: "time"` step runs its `nominal_time_s`.
 `metric` is one of the eight event metrics of
-[05 — Cycle Steps §3.2](05_cycle_steps.md#32-supported-event-metrics), `threshold_source` one
+[05 — Cycle steps §3.2](05_cycle_steps.md#32-supported-event-metrics), `threshold_source` one
 of `p_out`, `p_feed` and `T_cond`, and exactly one of `threshold_value` and
 `threshold_source` is set. Fields a step never reads are refused rather than ignored: the
 low-pressure stop fields act only on `cool`, the plateau fields below only on `blow` and
@@ -462,7 +466,7 @@ mean pressure descent rate, `-d(mean(p/p_ref))/d(t/tau_hyd)`. Pressurization use
 fast transient; it is not the event threshold. The built-in defaults use a rate tolerance of
 `1e-5` and a 50000 Pa arming value for both steps. Set the step's
 `stop_on_pressure_plateau = false` to keep only its pressure-target event. See
-[05 — Cycle Steps §4.3](05_cycle_steps.md#43-blowdown-blow).
+[05 — Cycle steps §4.3](05_cycle_steps.md#43-blowdown-blow).
 
 ### 4.3 Derived fields
 
@@ -497,7 +501,7 @@ block all describe the same run.
 
 `step_options` and `cycle_options` are **opaque mappings**: the user owns their keys, so they
 replace the default block as a whole instead of merging key by key. `cycle_options` keys are
-cycle indices; `{"3": {...}}` in JSON and `{3: {...}}` in Python mean the same override.
+cycle indices; `{"3": {...}}` in JSON and `{3: {...}}` in Python mean the same per-cycle settings.
 
 `execution.extra_tag` is `null` or a portable folder tag. After stripping surrounding whitespace
 and replacing spaces with `_`, it must match `[A-Za-z0-9_-][A-Za-z0-9._-]{0,63}`: 1 to 64
@@ -653,7 +657,7 @@ one domain of the document; it is the file to edit to change a value for every c
 
 pyDAC ships a JSON Schema,
 [`src/pydac/config/json_schema/experiment.schema.json`](../../src/pydac/config/json_schema/experiment.schema.json),
-generated from the defaults and their rules. A case file must not carry a `"$schema"` key:
+generated from the defaults and their rules. A case document (preset or frozen case) must not carry a `"$schema"` key:
 the loader refuses unknown fields, and `$schema` is one. Connect the schema from the editor
 side instead, as described in
 [Cases and settings](../guide/03_cases.md#editing-a-case-with-schema-support).
@@ -665,7 +669,7 @@ side instead, as described in
 An NSGA-II campaign does not introduce a second configuration vocabulary. A candidate is the
 campaign's base case plus `candidate_settings(...)`: its operating settings and four fixed
 execution settings (solve on, console and cycle-build printing off, profile plots off),
-resolved by the same loader as `--set` items on the command line. How a campaign runs is in [07 — NSGA-II Optimization](07_nsga2_optimization.md).
+resolved by the same loader as `--set` items on the command line. How a campaign runs is in [07 — NSGA-II optimization](07_nsga2_optimization.md).
 
 ### 8.1 Operating knobs and their fan-out
 
@@ -697,7 +701,7 @@ volume, the bed, the cycle steps, `require_css` and the adsorption feed conditio
 they are never stated twice. Each candidate is that base case plus
 `candidate_settings(...)` (its `operating_step_settings(...)` and the four execution settings
 of 07 §2); the decision variables and their conversion to knobs are in
-[07 — NSGA-II Optimization §2](07_nsga2_optimization.md#2-decision-variables-and-candidate-settings).
+[07 — NSGA-II optimization §2](07_nsga2_optimization.md#2-decision-variables-and-candidate-settings).
 
 ### 8.3 Where the resolved document is written
 
@@ -743,13 +747,13 @@ Commands that help:
 
 ```bash
 # is this case valid?
-pydac validate --case my_case.json --validate
+pydac validate --case PATH --validate
 # can this run start?
-pydac css --config my_preset.json --dry-run
+pydac css --config PATH --dry-run
 # the complete resolved case
-pydac validate --config my_preset.json --print-resolved
+pydac validate --config PATH --print-resolved
 # what differs between two presets
-diff <(pydac validate --config a.json --print-resolved) <(pydac validate --config b.json --print-resolved)
+diff <(pydac validate --config PRESET_A --print-resolved) <(pydac validate --config PRESET_B --print-resolved)
 ```
 
 ---
@@ -825,7 +829,7 @@ maintainer review.
 ### 10.2 Adding or changing an isotherm or kinetic model
 
 The document declares physical names, datasets and unit-bearing parameters; it never declares
-a Python class or a state index. The built-in wet DAC choice is:
+a Python class or a state index. The built-in wet direct air capture (DAC) choice is:
 
 ```json
 {
@@ -853,7 +857,7 @@ The equations and the model-name registries are next to each other:
 
 | Change | File |
 |---|---|
-| equilibrium equations, requirements and model-name registry | [`src/pydac/core/isotherm_models.py`](../../src/pydac/core/isotherm_models.py): `EquilibriumSystem`, the Toth/GAB/WADST systems, `EQUILIBRIUM_REGISTRY` |
+| equilibrium equations, requirements and model-name registry | [`src/pydac/core/isotherm_models.py`](../../src/pydac/core/isotherm_models.py): `EquilibriumSystem`, the Toth, Guggenheim–Anderson–de Boer (GAB) and WADST systems, `EQUILIBRIUM_REGISTRY` |
 | kinetic equations, supported species and model-name registry | [`src/pydac/core/kinetic_models.py`](../../src/pydac/core/kinetic_models.py): `KineticLaw`, `LDFRate`, `KINETIC_REGISTRY` |
 | registry construction and coverage checks | [`src/pydac/utils/model_registry.py`](../../src/pydac/utils/model_registry.py): `build_equilibrium_system()`, `build_kinetic_laws()` |
 | configuration-to-registry composition | [`src/pydac/core/column_model_factory.py`](../../src/pydac/core/column_model_factory.py): `_build_model_components()` |
@@ -903,7 +907,8 @@ whitespace and `entry.build` must be callable. A built-in name is refused; regis
 existing custom name replaces its entry for the current session.
 
 Register custom models before loading a case that selects them, and register them again before
-`resume` or `report` in a new Python session. NSGA-II workers started with `spawn` or
+`resume`, or a `report` with `snapshot_times`, in a new Python session; a `report` without
+`snapshot_times` and `CycleDataLoader` read only the saved results and need no registration. NSGA-II workers started with `spawn` or
 `forkserver` (the default on Windows, macOS and, from Python 3.14, Linux) are new sessions and
 do not inherit the parent's registrations. The saved case contains model names and selections,
 not the custom Python code: keep the model implementation with the results. Reusing a
@@ -911,20 +916,29 @@ registered name with different code does not by itself change the case fingerpri
 
 ### 10.3 Packed-bed architecture ownership
 
-The registered architecture is `packed_bed`, in 1D and 2D. The typed configuration delegates
+The built-in architecture is `packed_bed`, in 1D and 2D. The typed configuration delegates
 bed validation to `resolve_bed_config()` in
 [`src/pydac/core/bed_architectures/`](../../src/pydac/core/bed_architectures/), which owns:
 
-- the `ARCHITECTURE_REGISTRY` metadata, in `__init__.py`;
+- the `ARCHITECTURE_REGISTRY` metadata of the built-in architecture, in `__init__.py`, and the
+  session registry of the others, in `registry.py`;
 - `PackedBedDesign` and exact-field validation, in `base.py`, together with the contract a
   new architecture implements: the `typing.Protocol` classes `BedArchitecture`,
   `PressureDropLaw`, `HeatTransferModel` and `DispersionModel`;
 - the structure, pressure-drop, dispersion and thermal closures, in `packed_bed.py`;
 - the radial channeling structure of §4.6, in `channeling.py`.
 
-Adding an architecture needs a coordinated change to the configuration, the solver, result
-persistence and the tests, and the change to `src/pydac/core/column_model.py` is reviewed by
-the maintainers first.
+Other architectures plug in at run time, without editing pyDAC:
+`pydac.register_bed_architecture(name, pydac.BedArchitectureEntry(...))` (in
+`registry.py`; [guide 08](../guide/08_extending.md#a-bed-architecture)). The column keeps
+`packed_bed` on its own code path and reaches a registered architecture only through the
+checked wrapper of `registry.py`, which hands its closures a `ClosureInputs` record. A registered
+architecture is radially uniform and accepts no wall heat-transfer override.
+
+Making an architecture part of pyDAC itself (built in, known to the terminal and the JSON
+schema) needs a coordinated change to the configuration, the solver, result persistence and
+the tests, and the change to `src/pydac/core/column_model.py` is reviewed by the maintainers
+first.
 
 ### 10.4 Two standing rules
 
@@ -938,6 +952,6 @@ the maintainers first.
 ## Related documents
 
 - [Cases and settings](../guide/03_cases.md): writing and checking cases.
-- [00 — Framework Map](00_framework_map.md): layers and entry points.
-- [05 — Cycle Steps](05_cycle_steps.md): the physics of each step.
-- [07 — NSGA-II Optimization](07_nsga2_optimization.md): campaign internals.
+- [00 — Framework map](00_framework_map.md): layers and entry points.
+- [05 — Cycle steps](05_cycle_steps.md): the physics of each step.
+- [07 — NSGA-II optimization](07_nsga2_optimization.md): campaign internals.

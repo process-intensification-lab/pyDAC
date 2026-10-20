@@ -1,5 +1,6 @@
 """Public architecture boundary, including explicit rejection of unknown inputs."""
 
+import pandas as pd
 import pytest
 
 from pydac.core import bed_architectures
@@ -65,9 +66,30 @@ def test_persisted_context_roundtrip_and_unknown_architecture_rejection(nr):
     context = SimulationContext.from_model(model)
     frame = context.to_dataframe()
     assert SimulationContext(frame).architecture == "packed_bed"
-    frame.loc[frame["Parameter ID"].eq("bed.architecture"), "Value"] = "other_bed"
+    # A non-built-in name is read only with the marker row of a registered
+    # architecture that repeats it, so a renamed packed-bed context is refused;
+    # with the marker, its rows are checked by form only.
+    renamed = frame.copy()
+    renamed.loc[renamed["Parameter ID"].eq("bed.architecture"), "Value"] = "other_bed"
+    with pytest.raises(ValueError, match="no 'bed.registered_architecture' row"):
+        SimulationContext(renamed)
+    marker = pd.DataFrame([{"Category": "bed", "Parameter ID": "bed.registered_architecture",
+                            "Step": "", "Value": "other_bed", "Unit": "-"}])
+    marked = pd.concat([renamed, marker], ignore_index=True)
+    assert SimulationContext(marked).architecture == "other_bed"
+    marked.loc[marked["Parameter ID"].eq("bed.architecture"), "Value"] = "other_bd"
+    with pytest.raises(ValueError, match="does not match"):
+        SimulationContext(marked)
+    marked.loc[marked["Parameter ID"].eq("bed.architecture"), "Value"] = "other-bed"
     with pytest.raises(ValueError, match="[Uu]nsupported.*architecture"):
-        SimulationContext(frame)
+        SimulationContext(marked)
+    marked.loc[marked["Parameter ID"].eq("bed.architecture"), "Value"] = "other_bed"
+    marked.loc[marked["Parameter ID"].eq("bed.design.eps_b"), "Parameter ID"] = "bed.other.eps_b"
+    with pytest.raises(ValueError, match="must be bed.design"):
+        SimulationContext(marked)
+    with pytest.raises(ValueError, match="unknown=\\['bed.registered_architecture'\\]"):
+        SimulationContext(pd.concat([frame, marker.assign(Value="packed_bed")],
+                                    ignore_index=True))
 
 
 def test_radial_conductivity_is_continuous_at_zero_flow():

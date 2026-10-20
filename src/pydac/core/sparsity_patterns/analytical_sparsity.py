@@ -12,8 +12,6 @@ Draw the mask of the default DAC layout from the command line:
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-10-01
 """
 
 from __future__ import annotations

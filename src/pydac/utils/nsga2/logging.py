@@ -14,6 +14,7 @@ from pymoo.termination.max_eval import MaximumFunctionCallTermination
 from pymoo.termination.max_gen import MaximumGenerationTermination
 from pymoo.termination.robust import RobustTermination
 
+from pydac.utils.paths import display_path
 from pydac.utils.run import is_steam_assisted_desorption_step
 
 
@@ -633,11 +634,10 @@ class NSGA2Logger(Callback):
         if gen_folder.exists():
             try:
                 shutil.rmtree(gen_folder)
-                #print(f"[CLEANUP] Deleted full generation folder: {gen_folder.name}")
             except Exception as e:
                 print(f"[ERROR] Could not delete {gen_folder.name}: {e}")
         else:
-            print(f"[WARN] Generation folder not found: {gen_folder}")
+            print(f"[WARN] Generation folder not found: {display_path(gen_folder)}")
                 
     def delete_eval_folder(self, folder_path):
         try:

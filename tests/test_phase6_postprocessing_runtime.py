@@ -306,6 +306,54 @@ def test_simulation_context_schema_expands_from_declared_species_and_merges():
 
 
 @pytest.mark.parametrize(
+    ("nr", "settings", "wall_htc", "overall_wall_htc"),
+    [
+        (1, {}, "dixon", "dixon_1996"),
+        (1, {"wall.overall_htc_override_W_m2K": 20.0}, "dixon", "override"),
+        (1, {"bed.design.wall_htc_model": "specchia_1980"}, "specchia_1980", "dixon_1996"),
+        (2, {}, "dixon", "none"),
+        (2, {"wall.bed_wall_htc_override_W_m2K": 300.0}, "override", "none"),
+    ],
+)
+def test_context_names_the_wall_law_and_the_lumped_coefficient_only_where_it_exists(
+    nr, settings, wall_htc, overall_wall_htc
+):
+    context = SimulationContext.from_model(_build_model(nr=nr, settings={"grid.nz": 4, **settings}))
+    assert context.text("bed.models.wall_htc", step="startup") == wall_htc
+    assert context.text("bed.models.overall_wall_htc", step="startup") == overall_wall_htc
+
+
+@pytest.mark.parametrize("nr", [1, 2])
+def test_a_pydac_3_0_context_reads_back_in_the_current_rows(tmp_path, nr):
+    import pickle
+
+    from pydac.post_processing.context.store import SimulationContextStore
+
+    current = SimulationContext.from_model(_build_model(nr=nr, settings={"grid.nz": 4}))
+    # The version-2 table of pyDAC 3.0.x: one heat_transfer row, "dixon_1996" in 1D and 2D.
+    old = current.to_dataframe()
+    old = old.loc[old["Parameter ID"].ne("bed.models.wall_htc")].reset_index(drop=True)
+    row = old["Parameter ID"].eq("bed.models.overall_wall_htc")
+    old.loc[row, "Parameter ID"] = "bed.models.heat_transfer"
+    old.loc[row, "Value"] = "dixon_1996"
+    old.attrs["schema_version"] = 2
+    store = SimulationContextStore(tmp_path)
+    with store.path.open("wb") as handle:
+        pickle.dump(old, handle)
+
+    loaded = store.load()
+    assert loaded.schema_version == 3
+    assert loaded.text("bed.models.wall_htc", step="startup") == "unrecorded"
+    expected = "dixon_1996" if nr == 1 else "none"
+    assert loaded.text("bed.models.overall_wall_htc", step="startup") == expected
+    old.attrs["schema_version"] = 1
+    with store.path.open("wb") as handle:
+        pickle.dump(old, handle)
+    with pytest.raises(ValueError, match="unsupported schema version 1"):
+        store.load()
+
+
+@pytest.mark.parametrize(
     ("fixture_name", "expected"),
     [
         # Re-pinned when the mixed cup became the stream's own composition

@@ -9,8 +9,6 @@ cycle folders.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
 
 import os
@@ -24,6 +22,7 @@ from pydac.post_processing.profiles.step_post_processing import StepPostProcesso
 from pydac.post_processing.metrics.step_metrics_store import StepMetricsStore
 from pydac.core.solver import Solver
 from pydac.utils.logger import log_to, terminal_only
+from pydac.utils.paths import display_path
 from pydac.utils.solver.outcome import (
     compact_solver_outcome,
     is_state_domain_failure,
@@ -118,7 +117,7 @@ class TVSA_Cycle:
         self.base_folder = base_folder
         if not os.path.exists(self.base_folder):
             os.makedirs(self.base_folder)
-        print(f"Results will be saved in: {self.base_folder}")
+        print(f"Results will be saved in: {display_path(self.base_folder)}")
         
         self.cyclic_mode = cyclic_mode
         self.cycle_idx = cycle_idx
@@ -231,7 +230,7 @@ class TVSA_Cycle:
                         "resume from a completed cycle terminal artifact or rerun the step."
                     )
                 print("Execution mode      : solve=False (saved solution will be reused)")
-                print(f"Saved solution path : {step_solution_path}")
+                print(f"Saved solution path : {display_path(step_solution_path)}")
                 if not os.path.exists(step_solution_path):
                     raise FileNotFoundError(
                         f"solve=False for step '{step_name}', but no saved solution exists at "
@@ -258,7 +257,7 @@ class TVSA_Cycle:
             # Show the stop criterion that the model will actually use.
             termination_setup = _describe_termination_setup_from_model(adsorber)
 
-            print(f"Using spatial-mode results folder: {run_base_folder}")
+            print(f"Using spatial-mode results folder: {display_path(run_base_folder)}")
             print(f"Termination setup   : {termination_setup['display']}")
 
             # Run or reload the step through the solver.

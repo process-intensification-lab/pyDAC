@@ -1,5 +1,5 @@
 ---
-title: "03 — pymrm Discretization Engine"
+title: "03 — pymrm discretization engine"
 toc: true
 toc-depth: 3
 embed-resources: true
@@ -21,9 +21,9 @@ matrix operators on structured grids. It implements the **finite volume method (
 
 - Cell-centered storage for primary unknowns (concentrations, temperature, pressure)
 - Staggered (face-centered) storage for fluxes and velocities
-- SciPy sparse arrays for the operators: the convection caches return CSR arrays, and the
+- SciPy sparse arrays for the operators: the convection caches return compressed sparse row (CSR) arrays, and the
   model converts selected fixed operators to CSR after assembly when
-  `PYDAC_RHS_CSR_OPERATORS` is enabled (the default); operators not converted can remain CSC
+  `PYDAC_RHS_CSR_OPERATORS` is enabled (the default); operators not converted can remain compressed sparse column (CSC)
 - Boundary conditions encoded in a single linear relation per face
 
 **Authors:** E.A.J.F. Peters, M. van Sint Annaland, M. Galanti, D.R. Rieder
@@ -32,7 +32,7 @@ matrix operators on structured grids. It implements the **finite volume method (
 
 ---
 
-## 2. Grid Layout
+## 2. Grid layout
 
 pymrm operates on structured grids with two coordinate arrays per axis:
 
@@ -60,7 +60,7 @@ The caches of §6 receive these arrays and call
 `pymrm.generate_grid(size, x_f, generate_x_c=True, x_c=x_c)` to normalize them;
 `generate_grid` returns the `(x_f, x_c)` pair only with `generate_x_c=True`.
 
-### Shape Convention
+### Shape convention
 
 The solver packs the state into one flat vector described by `StateLayout`
 (`src/pydac/core/state_layout.py`), where a bed field has shape `(Nz, Nr)` and the wall
@@ -79,7 +79,7 @@ temperature `(Nz,)`. Inside the model, work arrays and operators use the shapes 
 
 ---
 
-## 3. Boundary Condition Notation
+## 3. Boundary condition notation
 
 All boundary conditions in pymrm use the **generalized linear form**:
 
@@ -89,16 +89,16 @@ where $\partial/\partial n$ is the derivative along the **outward** normal of th
 face: $-\partial/\partial z$ at the inlet ($z = 0$), $+\partial/\partial z$ at the outlet. The
 relation is stored as a Python dictionary: `{'a': a_val, 'b': b_val, 'd': d_val}`.
 
-### Standard Types
+### Standard types
 
 | Type | a | b | d | Effect |
 |------|---|---|---|--------|
 | **Dirichlet** | 0 | 1 | φ_in | φ = φ_in at boundary |
 | **Neumann** (zero gradient) | 1 | 0 | 0 | ∂φ/∂n = 0: no diffusive or conductive flux; a convective flux remains unless the normal velocity is zero |
 | **Robin** | a ≠ 0 | b ≠ 0 | d | Mixed condition (e.g. valve) |
-| **Danckwerts-type** (marker) | 0 | 0 | 0 | No gradient relation is imposed; the RHS replaces the inlet contribution by the prescribed total, species or sensible-enthalpy flux |
+| **Danckwerts-type** (marker) | 0 | 0 | 0 | No gradient relation is imposed; the right-hand side (RHS) replaces the inlet contribution by the prescribed total, species or sensible-enthalpy flux |
 
-### How pymrm Encodes BCs
+### How pymrm encodes BCs
 
 When `construct_grad` is called, it returns:
 
@@ -118,15 +118,15 @@ combined matrix on first use and refreshes the boundary-value vector during RHS 
 
 ---
 
-## 4. Core pymrm Functions
+## 4. Core pymrm functions
 
 ### 4.1 `construct_grad(shape, x_f, x_c, bc, axis)`
 
 Builds the gradient operator [Grad] mapping cell-center values → face gradients.
 
-- **Input:** field shape, face/center coordinates, BC tuple `(bc_left, bc_right)`, axis index.
+- **Input:** field shape, face/center coordinates, boundary condition (BC) tuple `(bc_left, bc_right)`, axis index.
 - **Output:** `(Grad, grad_bc)` — sparse matrix and BC correction vector.
-- **Stencil:** centered difference between adjacent cell centres on interior faces (second
+- **Stencil:** centered difference between adjacent cell centers on interior faces (second
   order on the uniform grid); quadratic reconstruction satisfying the face BC on boundaries.
 
 ### 4.2 `construct_div(shape, x_f, nu, axis)`
@@ -166,14 +166,14 @@ A coefficient matrix times the gradient gives only the gradient-based part of a 
 live species dispersion in the RHS also carries the face total concentration and the
 mixture correction velocity (§5.1).
 
-### 4.5 Interpolation Functions
+### 4.5 Interpolation functions
 
 | Function | Direction | Description |
 |----------|-----------|-------------|
 | `interp_cntr_to_stagg(φ, x_f, x_c, axis)` | Center → Face | Linear interpolation |
 | `interp_stagg_to_cntr(φ, x_f, x_c, axis)` | Face → Center | Linear interpolation |
 
-### 4.6 TVD Limiters
+### 4.6 Total variation diminishing (TVD) limiters
 
 For higher-order convection schemes, pymrm provides flux limiters:
 
@@ -185,7 +185,7 @@ pyDAC currently uses first-order upwind exclusively.
 
 ## 5. Assembly in pyDAC
 
-### 5.1 One-Time Operators (built in `init_Jac`)
+### 5.1 Fixed operators (built in `init_Jac`)
 
 These operators depend on the grid, the step-resolved transport coefficients and the fixed
 BC coefficients, not on the solution state:
@@ -208,7 +208,7 @@ temperature (§5.2).
 
 All BC correction vectors are converted to dense arrays (`*_bc_dense`) to avoid sparse-dense conversion overhead in the RHS loop.
 
-### 5.2 Per-RHS Operators (refreshed during RHS evaluation)
+### 5.2 Operators refreshed during RHS evaluation
 
 These operators depend on the velocity field. The convection caches are refreshed during each
 RHS evaluation (including CVODE's internal evaluations) from the current face-velocity arrays;
@@ -224,7 +224,7 @@ passing the same array object again returns the cached operator and boundary vec
 
 ---
 
-## 6. Caching Layer (`src/pydac/core/pymrm_caching.py`)
+## 6. Caching layer (`src/pydac/core/pymrm_caching.py`)
 
 The caching layer avoids rebuilding operators at every RHS call by separating the
 **geometry-dependent** parts (fixed) from the **state-dependent** parts (updated). It exposes
@@ -282,7 +282,7 @@ For the packed-bed model this is especially important for the radial bed-tempera
 
 ---
 
-## 7. Operator Assembly Pattern (Summary)
+## 7. Operator assembly pattern (summary)
 
 ```
 Initialization (once per step):

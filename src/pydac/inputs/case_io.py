@@ -171,6 +171,18 @@ def _require_complete(value: Any, expected: Any, path: tuple[str, ...]) -> None:
         _require_complete(mapping[key], expected_value, path + (key,))
 
 
+def _older_case_guidance(error: ConfigurationError, version: Any) -> str:
+    """Say why an older frozen case misses a field, and how to bring it up to date."""
+    return (
+        f"{error} The case says `schema_version` {version}, but it was written by an "
+        "earlier pyDAC build, before that field existed, so it cannot run exactly as it is. "
+        "To bring it to the current version, load it as a preset (`pydac.load_case(PATH)` "
+        "or `--config PATH`), where the missing fields take the built-in defaults; check "
+        "the case; then save it again with `pydac.export_case` or `--export-case PATH`. "
+        f"The saved file is a complete case of schema {CURRENT_SCHEMA_VERSION}."
+    )
+
+
 def validate_case_document(source: Any) -> dict[str, Any]:
     """Validate and return a complete standalone case document.
 
@@ -183,55 +195,60 @@ def validate_case_document(source: Any) -> dict[str, Any]:
     version = original.get("schema_version")
     refuse_initial_loadings_before_v8(original, "frozen case")
     current_vocabulary = _case_vocabulary(source, original)
-    if version == LEGACY_SCHEMA_VERSION:
-        _require_complete(
-            original,
-            legacy_v1_vocabulary(current_vocabulary),
-            (),
-        )
-    elif version == SOLVER_CHOICE_SCHEMA_VERSION:
-        _require_complete(
-            original,
-            solver_choice_v2_vocabulary(current_vocabulary),
-            (),
-        )
-    elif version == PRE_OUTLET_SCHEMA_VERSION:
-        _require_complete(
-            original,
-            pre_outlet_v3_vocabulary(current_vocabulary),
-            (),
-        )
-    elif version == PRE_VALVE_RENAME_SCHEMA_VERSION:
-        _require_complete(
-            original,
-            pre_valve_rename_v4_vocabulary(current_vocabulary),
-            (),
-        )
-    elif version == PRE_WALL_RENAME_SCHEMA_VERSION:
-        _require_complete(
-            original,
-            pre_wall_rename_v5_vocabulary(current_vocabulary),
-            (),
-        )
-    elif version == PRE_SORBENT_MAPPING_SCHEMA_VERSION:
-        _require_complete(
-            original,
-            pre_sorbent_mapping_v6_vocabulary(current_vocabulary),
-            (),
-        )
-    elif version == PRE_INITIAL_LOADING_SCHEMA_VERSION:
-        _require_complete(
-            original,
-            pre_initial_loading_v7_vocabulary(current_vocabulary),
-            (),
-        )
-    elif version == CURRENT_SCHEMA_VERSION:
-        _require_complete(original, current_vocabulary, ())
-    else:
-        raise ConfigurationError(
-            f"Unsupported case `schema_version` {version!r}; this loader supports "
-            f"{', '.join(map(str, SUPPORTED_SCHEMA_VERSIONS))}."
-        )
+    try:
+        if version == LEGACY_SCHEMA_VERSION:
+            _require_complete(
+                original,
+                legacy_v1_vocabulary(current_vocabulary),
+                (),
+            )
+        elif version == SOLVER_CHOICE_SCHEMA_VERSION:
+            _require_complete(
+                original,
+                solver_choice_v2_vocabulary(current_vocabulary),
+                (),
+            )
+        elif version == PRE_OUTLET_SCHEMA_VERSION:
+            _require_complete(
+                original,
+                pre_outlet_v3_vocabulary(current_vocabulary),
+                (),
+            )
+        elif version == PRE_VALVE_RENAME_SCHEMA_VERSION:
+            _require_complete(
+                original,
+                pre_valve_rename_v4_vocabulary(current_vocabulary),
+                (),
+            )
+        elif version == PRE_WALL_RENAME_SCHEMA_VERSION:
+            _require_complete(
+                original,
+                pre_wall_rename_v5_vocabulary(current_vocabulary),
+                (),
+            )
+        elif version == PRE_SORBENT_MAPPING_SCHEMA_VERSION:
+            _require_complete(
+                original,
+                pre_sorbent_mapping_v6_vocabulary(current_vocabulary),
+                (),
+            )
+        elif version == PRE_INITIAL_LOADING_SCHEMA_VERSION:
+            _require_complete(
+                original,
+                pre_initial_loading_v7_vocabulary(current_vocabulary),
+                (),
+            )
+        elif version == CURRENT_SCHEMA_VERSION:
+            _require_complete(original, current_vocabulary, ())
+        else:
+            raise ConfigurationError(
+                f"Unsupported case `schema_version` {version!r}; this loader supports "
+                f"{', '.join(map(str, SUPPORTED_SCHEMA_VERSIONS))}."
+            )
+    except ConfigurationError as error:
+        if version == CURRENT_SCHEMA_VERSION or not str(error).startswith("Incomplete case"):
+            raise
+        raise ConfigurationError(_older_case_guidance(error, version)) from error
 
     document = upgrade_experiment_document(original, label="frozen case")
     vocabulary = _case_vocabulary(source, document)

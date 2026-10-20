@@ -1,0 +1,40 @@
+{
+  "title": "pyDAC: simulation of adsorption-based direct air capture processes",
+  "upload_type": "software",
+  "description": "<p>pyDAC simulates adsorption cycles composed from configurable steps (by default a steam-assisted temperature-vacuum swing adsorption, TVSA, cycle) for CO2 direct air capture in 1D and 2D packed beds: single step sequences, cycles to cyclic steady state with KPIs, and local NSGA-II optimization of the operating conditions.</p>",
+  "creators": [
+    {
+      "name": "Galanti, Mattia",
+      "affiliation": "Eindhoven University of Technology",
+      "orcid": "0009-0004-9552-7063"
+    },
+    {
+      "name": "Roghair, Ivo",
+      "affiliation": "Eindhoven University of Technology",
+      "orcid": "0000-0002-7221-5567"
+    },
+    {
+      "name": "van Sint Annaland, Martin",
+      "affiliation": "Eindhoven University of Technology",
+      "orcid": "0000-0002-2903-7443"
+    }
+  ],
+  "license": "mit",
+  "keywords": [
+    "direct air capture",
+    "adsorption",
+    "TVSA",
+    "cyclic adsorption",
+    "packed bed",
+    "process simulation"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.26434/chemrxiv.15010382/v1",
+      "relation": "isDescribedBy",
+      "resource_type": "publication-preprint",
+      "scheme": "doi"
+    }
+  ],
+  "notes": "This work was supported by Shell Global Solutions International BV."
+}

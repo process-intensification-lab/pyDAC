@@ -22,6 +22,8 @@ from numbers import Real
 from types import MappingProxyType
 from typing import Any, Mapping, Protocol, runtime_checkable
 
+import numpy as np
+
 
 ARCHITECTURE_NAMES = frozenset({"packed_bed"})
 _SPATIAL_MODES = frozenset({"1d", "2d"})
@@ -294,11 +296,16 @@ def resolve_channeling_options(value: Any) -> ChannelingOptions:
 
 
 def validate_architecture_name(name: str) -> str:
-    """Validate and return one of the registered architecture names."""
+    """Validate and return a built-in or session-registered architecture name."""
+    from pydac.core.bed_architectures.registry import registered_bed_architecture_names
+
     if not isinstance(name, str):
         raise TypeError("`architecture` must be a string.")
-    if name not in ARCHITECTURE_NAMES:
+    registered = registered_bed_architecture_names()
+    if name not in ARCHITECTURE_NAMES and name not in registered:
         choices = ", ".join(sorted(ARCHITECTURE_NAMES))
+        if registered:
+            choices += f" (built-in), or one registered in this session: {', '.join(registered)}"
         raise ValueError(f"Unknown architecture {name!r}; choose one of {choices}.")
     return name
 
@@ -311,7 +318,14 @@ def validate_spatial_mode(mode: str, *, architecture: str | None = None) -> str:
         choices = ", ".join(sorted(_SPATIAL_MODES))
         raise ValueError(f"Unsupported spatial mode {mode!r}; choose one of {choices}.")
     if architecture is not None:
-        architecture = validate_architecture_name(architecture)
+        from pydac.core.bed_architectures import get_architecture_spec
+
+        modes = get_architecture_spec(architecture).spatial_modes
+        if mode not in modes:
+            raise ValueError(
+                f"Bed architecture {architecture!r} supports only "
+                f"{', '.join(modes)}; this case runs in {mode}."
+            )
     return mode
 
 
@@ -498,6 +512,16 @@ def build_bed_config(
             "material": None,
         }
 
+    # A session-registered architecture owns its own validation; the wrapper
+    # returns its canonical mappings, already checked for a stable round trip.
+    from pydac.core.bed_architectures.registry import registered_bed_architecture
+
+    registered = registered_bed_architecture(architecture).build_design(design, material)
+    return {
+        "architecture": architecture,
+        "design": dict(registered.design),
+        "material": None if registered.material is None else dict(registered.material),
+    }
 
 
 def resolve_bed_config(
@@ -774,11 +798,33 @@ class ResolvedTransport:
 
 
 @dataclass(frozen=True)
+class RegisteredDesign:
+    """Design of a session-registered architecture, owned by pyDAC.
+
+    ``obj`` is the provider's own design object, handed back to its closures.
+    ``design`` and ``material`` are its canonical mappings (flat, finite
+    numbers), computed once when the design is built and stored read-only.
+    """
+
+    name: str
+    obj: Any
+    design: Mapping[str, float]
+    material: Mapping[str, float] | None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "design", MappingProxyType(dict(self.design)))
+        if self.material is not None:
+            object.__setattr__(
+                self, "material", MappingProxyType(dict(self.material))
+            )
+
+
+@dataclass(frozen=True)
 class ResolvedArchitecture:
     """Complete serializable result of a future architecture resolution."""
 
     architecture: str
-    design: PackedBedDesign
+    design: PackedBedDesign | RegisteredDesign
     structure: ResolvedStructure
     transport: ResolvedTransport
 
@@ -789,8 +835,25 @@ class ResolvedArchitecture:
             PackedBedDesign,
         ):
             raise TypeError("Packed-bed resolution requires PackedBedDesign.")
+        if self.architecture != "packed_bed" and not isinstance(
+            self.design,
+            RegisteredDesign,
+        ):
+            raise TypeError("A registered architecture requires its RegisteredDesign.")
 
     def to_context_dict(self) -> dict[str, Any]:
+        if isinstance(self.design, RegisteredDesign):
+            return {
+                "architecture": self.architecture,
+                "design": dict(self.design.design),
+                "material": (
+                    None if self.design.material is None else dict(self.design.material)
+                ),
+                "resolved": {
+                    "structure": self.structure.to_context_dict(),
+                    "transport": self.transport.to_context_dict(),
+                },
+            }
         design = self.design.to_config_dict()
         material = None
         return {
@@ -808,9 +871,63 @@ class ResolvedArchitecture:
 # 5. Behavioral protocols
 # ---------------------------------------------------------------------------
 
+@dataclass(frozen=True)
+class ClosureInputs:
+    """Resolved step quantities a registered architecture's closures read.
+
+    The same values the column passes to the packed-bed closures, by name;
+    nothing new is computed.  ``molecular_diffusivity`` and ``schmidt`` have
+    shape ``(len(gas_species),)``, in ``gas_species`` order.  Arrays are stored
+    as detached copies (plain ``ndarray``, flagged read-only), so a closure
+    never reaches the model's own arrays; a closure treats them as read-only.
+    A pickled copy is rebuilt through the same copying.
+    """
+
+    eps_flow: float
+    viscosity: float
+    molecular_diffusivity: Any
+    reynolds: Any
+    schmidt: Any
+    prandtl: Any
+    gas_conductivity: Any
+    particle_conductivity: Any
+    superficial_inlet_velocity: Any
+    particle_diameter: float
+    bed_length: float
+    bed_radius: float
+    bed_diameter: float
+    reference_velocity: float
+    reference_pressure: float
+    is_1d: bool
+    gas_species: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        for name, value in list(vars(self).items()):
+            if isinstance(value, np.ndarray):
+                # np.array, not value.copy(): a subclass cannot hand back a view.
+                copy = np.array(value, copy=True, subok=False)
+                copy.setflags(write=False)
+                object.__setattr__(self, name, copy)
+        object.__setattr__(self, "gas_species", tuple(self.gas_species))
+
+    def __reduce__(self):
+        return (_closure_inputs_from_fields, (dict(vars(self)),))
+
+
+def _closure_inputs_from_fields(fields: dict) -> ClosureInputs:
+    """Unpickle ``ClosureInputs`` through ``__init__``, so the copies are redone."""
+    return ClosureInputs(**fields)
+
+
 @runtime_checkable
 class PressureDropLaw(Protocol):
-    """Behavioral pressure-drop contract used by the common column."""
+    """Behavioral pressure-drop contract used by the common column.
+
+    Besides ``velocity_from_gradient``, the column (2D vector drag) and the
+    result persistence read the two Ergun-scaled coefficients
+    ``linear_coefficient`` (nondimensional) and
+    ``inertial_coefficient_per_density`` (per unit dimensional density).
+    """
 
     name: str
 
@@ -879,6 +996,8 @@ __all__ = [
     "TransportContext",
     "ResolvedTransport",
     "ResolvedArchitecture",
+    "RegisteredDesign",
+    "ClosureInputs",
     "PressureDropLaw",
     "DispersionModel",
     "HeatTransferModel",

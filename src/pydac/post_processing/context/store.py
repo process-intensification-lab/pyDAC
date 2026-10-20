@@ -9,6 +9,8 @@ from pydac.post_processing.context.simulation_context import (
     SIMULATION_CONTEXT_SCHEMA_VERSION,
     SimulationContext,
 )
+from pydac.utils.paths import display_path
+from pydac.utils.postprocessing.context_schema import upgrade_simulation_context_v2
 
 
 CONTEXT_FILENAME = "simulation_context.pkl"
@@ -45,10 +47,11 @@ class SimulationContextStore:
         self.base_folder.mkdir(parents=True, exist_ok=True)
         with self.path.open("wb") as handle:
             pickle.dump(context.to_dataframe(), handle)
-        print(f"Simulation context successfully saved to '{self.path}'")
+        print(f"Simulation context successfully saved to '{display_path(self.path)}'")
         return self.path
 
     def load(self):
+        """Load the saved context; a schema-2 context (pyDAC 3.0.x) is read in the schema-3 rows."""
         if not self.exists():
             raise FileNotFoundError(f"No saved simulation context found at '{self.path}'.")
 
@@ -57,6 +60,9 @@ class SimulationContextStore:
         if not isinstance(dataframe, pd.DataFrame):
             raise TypeError(f"Expected a pandas DataFrame in '{self.path}'.")
         schema_version = dataframe.attrs.get("schema_version")
+        if schema_version == 2:  # pyDAC 3.0.x
+            dataframe = upgrade_simulation_context_v2(dataframe)
+            schema_version = SIMULATION_CONTEXT_SCHEMA_VERSION
         if schema_version != SIMULATION_CONTEXT_SCHEMA_VERSION:
             raise ValueError(
                 f"Simulation context at '{self.path}' uses unsupported schema "

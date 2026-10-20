@@ -395,3 +395,35 @@ def test_dac_residual_check_tolerates_the_floor_summed_in_another_order(capsys):
 
     assert probe._check_current_dac_residual_inventory("O2", 0.0, at_floor) == at_floor
     assert capsys.readouterr().out == ""
+
+
+def test_step_outlet_figure_draws_the_face_stream_not_the_last_cell(tmp_path, monkeypatch):
+    from matplotlib import pyplot as plt
+
+    from pydac.post_processing.profiles.step_plotting import ProfilesPlotter
+
+    cycle = CycleConfig.from_experiment(load_experiment(
+        "tests/cases/v3_smoke_startup.json", settings={"grid.nz": 6, "grid.nr": 3}))
+    model = ColumnModelFactory(cycle).build_column_model(
+        step="startup", solver_options=cycle.solver_for_step(use_sparsity=False))
+    z = model.z_c[:, None]
+    r = model.r_c[None, :]
+    model.ci[..., model.gas_index["CO2"]] = model.c_tot[..., 0] * (0.0004 + 0.01 * (1 - z) * (1 - r))
+    solver = Solver(model, base_folder=str(tmp_path))
+    state = solver._initial_state()
+    solver.sol = {"y": np.column_stack([state, state]), "t": np.array([0., 1.])}
+    solver.prepare_results()
+    processor = StepPostProcessor(model, solver)
+    monkeypatch.setattr(plt, "close", lambda *args, **kwargs: None)
+    plt.close("all")
+    ProfilesPlotter(processor).plot_outlet_profiles(temperature=False, pressure=False, save=False)
+
+    axis = plt.figure(plt.get_fignums()[0]).axes[0]
+    drawn = axis.lines[0].get_ydata()
+    face = processor.get_mixed_cups()["y_CO2"]
+    np.testing.assert_array_equal(drawn, face)
+    assert "net outlet flow" in axis.get_title()
+    cell = np.average(processor.y_CO2[-1], axis=0, weights=model.A_rings)
+    assert not np.allclose(face, cell, rtol=1e-6, atol=0)
+    monkeypatch.undo()
+    plt.close("all")

@@ -30,7 +30,7 @@ body:
     attributes:
       label: pyDAC version
       description: The output of `pydac --version`.
-      placeholder: pydac 3.0.1
+      placeholder: pydac 3.1.0
     validations:
       required: true
   - type: dropdown

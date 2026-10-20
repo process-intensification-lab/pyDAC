@@ -150,7 +150,7 @@ the exact environment; inside it, run the full suite with `python -m pytest -q`.
   python docs/check_links.py
   ```
 
-  New behaviour comes with a test that fails without it.
+  New behavior comes with a test that fails without it.
 - **Open the pull request against `main`.** CI builds the wheel, installs it on Linux
   (Python 3.11 to 3.14) and on Windows, runs the tests, a short run of the `pydac`
   command and the link check. A pull request is merged with CI green and the

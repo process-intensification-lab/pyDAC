@@ -7,8 +7,6 @@ co-adsorption, and parameterized competitive-Sips formulations.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
 
 import warnings

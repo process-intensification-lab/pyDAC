@@ -45,7 +45,12 @@ from pydac.config.nulls import INHERIT, canonical_values, null_policy, resolve_n
 from pydac.config.profile import read_json_document, reference_profile
 from pydac.config.schema import SIMULATION_SECTIONS, ExperimentConfig, experiment_config_from_mapping
 from pydac.config.serialization import experiment_to_document
-from pydac.config.settings import OPAQUE_MAPPING_PATHS, resolve_settings, setting_path_parts
+from pydac.config.settings import (
+    OPAQUE_MAPPING_PATHS,
+    SPECIES_KEYED_PATHS,
+    resolve_settings,
+    setting_path_parts,
+)
 from pydac.config.steps import STEP_NAMES
 
 
@@ -93,6 +98,9 @@ def _document_path(canonical_path: tuple[str, ...]) -> tuple[str, ...]:
 # ``config.settings``; here it is only expanded to document positions.
 _REPLACED_MAPPING_PATHS = frozenset(
     _document_path(setting_path_parts(path)) for path in OPAQUE_MAPPING_PATHS
+)
+_SPECIES_KEYED_MAPPING_PATHS = frozenset(
+    _document_path(setting_path_parts(path)) for path in SPECIES_KEYED_PATHS
 )
 
 
@@ -204,19 +212,58 @@ def apply_settings(
     document: Mapping[str, Any],
     settings: Mapping[str, Any] | list[str] | tuple[str, ...] | None,
 ) -> dict[str, Any]:
-    """Apply canonical dotted settings without mutating ``document``."""
+    """Apply canonical dotted settings without mutating ``document``.
+
+    Every setting must name an existing field. A species key below a
+    species-keyed mapping is matched whatever its case; every other key is
+    exact. Two settings that reach the same field, however spelled, are
+    refused as one setting supplied twice.
+    """
     result = _require_mapping(document, "configuration document")
+    assigned: set[tuple[str, ...]] = set()
     for raw_path, value in resolve_settings(settings).items():
         # Normalize dotted/nested/user spelling into the canonical setting path.
         canonical = setting_path_parts(raw_path)
         if canonical[:1] == ("steps",) and canonical[1:2] and canonical[1] not in STEP_NAMES:
             raise SettingsError(f"Unknown cycle step `{canonical[1]}` in `{raw_path}`.")
         # Expand canonical shortcuts, resolve explicit nulls, then assign.
-        path = _document_path(canonical)
+        path = _existing_spelling(result, _document_path(canonical))
+        # Two spellings of one field (species case, repeated wrappers) are one setting.
+        if path in assigned:
+            raise SettingsError(f"Setting path `{_path_text(path)}` was supplied twice.")
+        assigned.add(path)
         if value is None:
             value = resolve_null(path, _current_value(result, path))
         _set_path(result, path, value)
     return _resolve_bed_profile_alias(result)
+
+
+def _existing_spelling(document: Mapping[str, Any], path: tuple[str, ...]) -> tuple[str, ...]:
+    """Spell a species key of a path the way the document does.
+
+    Species names do not depend on case, so a dotted setting that spells a
+    species in upper case reaches a case that wrote it in lower case. Only the
+    key right below a species-keyed mapping is matched this way, and only a
+    single key that differs by case alone; model parameter names and every
+    other key stay exact.
+    """
+    current: Any = document
+    spelled: list[str] = []
+    for component in path:
+        if (
+            tuple(spelled) in _SPECIES_KEYED_MAPPING_PATHS
+            and isinstance(current, Mapping)
+            and component not in current
+        ):
+            matches = [
+                key for key in current
+                if isinstance(key, str) and key.strip().upper() == component.strip().upper()
+            ]
+            if len(matches) == 1:
+                component = matches[0]
+        spelled.append(component)
+        current = current.get(component) if isinstance(current, Mapping) else None
+    return tuple(spelled)
 
 
 def _current_value(document: Mapping[str, Any], path: tuple[str, ...]) -> Any:

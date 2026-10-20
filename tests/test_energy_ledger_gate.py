@@ -52,7 +52,8 @@ SPECIES = ("CO2", "N2")
 # gate; the context only exists because `CycleData` requires a real one.
 _TEXT_CONTEXT_VALUES = {
     "bed.architecture": "packed_bed",
-    "bed.models.heat_transfer": "dixon",
+    "bed.models.wall_htc": "dixon",
+    "bed.models.overall_wall_htc": "dixon_1996",
     "bed.models.pressure_drop": "ergun",
     "bed.models.dispersion": "wakao",
     "bed.closure.gas_composition_source": "feed",

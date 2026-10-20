@@ -246,8 +246,10 @@ continue, replace or rename it.
 | API | the names in `pydac.__all__` | documented; changes announced in the release notes |
 | Internal | every other module under `pydac` | shipped and importable, no stability promise |
 
-The user guide shows only commands and `pydac.__all__` names. Internal functions can
-change in any release, and some write their results to other places than the API does.
+The user guide shows only commands and `pydac.__all__` names, except where a page marks an
+import as internal (the packed-bed clone of [A bed architecture](08_extending.md#an-example)).
+Internal functions can change in any release, and some write their results to other places
+than the API does.
 
 ## Related pages
 

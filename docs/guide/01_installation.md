@@ -141,7 +141,7 @@ python -c "import pydac; print(pydac.__file__)"
 A correct environment prints:
 
 - `No broken requirements found.`;
-- `pydac 3.0.0` (the installed version);
+- `pydac 3.1.0` (the installed version);
 - a path inside the environment you created, ending in `site-packages/pydac/__init__.py`.
 
 If the path lies in the user site instead (for example under `~/.local/lib/`), a

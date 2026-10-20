@@ -30,6 +30,7 @@ from pydac.config.terminal import (
     experiment_parser,
     resolve_experiment,
 )
+from pydac.utils.paths import display_path
 
 
 def add_validate_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -124,7 +125,7 @@ def _write_preset(args: argparse.Namespace, text: str) -> None:
     from pydac import api
 
     output = api._write_preset(text, args.export_preset, overwrite=args.overwrite_preset)
-    print(f"Exported preset: {output}")
+    print(f"Exported preset: {display_path(output)}")
 
 
 def main(argv: Sequence[str] | None = None) -> int:

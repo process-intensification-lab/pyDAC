@@ -1,5 +1,5 @@
 ---
-title: "00 — Framework Map"
+title: "00 — Framework map"
 toc: true
 toc-depth: 3
 embed-resources: true
@@ -17,7 +17,7 @@ and functions. To run pyDAC you do not need it: start with the
 - What an input means, and how a case is written and resolved:
   [01 — Inputs](01_inputs.md).
 - The same run stage by stage, with the code of each stage:
-  [02 — pyDAC Core](02_pydac_core.md).
+  [02 — pyDAC core](02_pydac_core.md).
 
 ## 1. Repository layout
 
@@ -25,15 +25,15 @@ The package source in a checkout is `src/pydac/`:
 
 | Path | Role |
 |---|---|
-| `api.py` | The Python API: `load_case`, `export_case`, `export_settings`, `run_steps`, `run_css`, `run_nsga2`, `resume`, `report`, `RunResult`. The names exported by `pydac` (`src/pydac/__init__.py`) are the supported surface. |
+| `api.py` | The Python application programming interface (API): `load_case`, `export_case`, `export_settings`, `run_steps`, `run_css`, `run_nsga2`, `resume`, `report`, `RunResult`. The names exported by `pydac` (`src/pydac/__init__.py`) are the supported surface. |
 | `cli.py` | The `pydac` command (`steps`, `css`, `nsga2`, `validate`, `get-started`). It parses flags, prints messages and maps errors to exit codes; the run commands delegate to `api.py`, `validate` to `config/cli.py`, and `get-started` to `starter_kit.py`. |
 | `starter_kit.py` | `pydac.get_started(folder)` / `pydac get-started FOLDER` copy `README.md`, `LICENSE`, `CITATION.cff`, `docs/guide/` and `examples/` from the installed wheel or a checkout into a new or empty folder. Generated run output and caches are skipped; Markdown and notebook links to files outside the kit point to the public repository at `v<version>` (`main` for a development build). |
-| `config/` | Case resolution and validation: settings, the immutable `ExperimentConfig`, the runtime records `CycleConfig` and `ColumnModelConfig`, serialization, the generated JSON Schema, the shared case flags. It does not import the solver. |
+| `config/` | Case resolution and validation: settings, the immutable `ExperimentConfig`, the runtime records `CycleConfig` and `ColumnModelConfig`, serialization, the generated JavaScript Object Notation (JSON) Schema, the shared case flags. It does not import the solver. |
 | `inputs/` | `inputs/defaults/` holds the default values, one module per domain; `case_io.py` reads and writes frozen cases and their fingerprint; `case_terminal.py` chooses between a frozen case and the defaults. |
 | `workflows/` | The orchestrators: `orchestrator_TVSA_steps.py` (one step sequence), `orchestrator_TVSA_cycle_css.py` (cycles to cyclic steady state), `orchestrator_NSGA2.py` (a campaign). Internal: reachable, not supported API. |
-| `core/` | The simulation engine: `TVSA_cycle.py`, `column_model_factory.py`, `column_model_input.py`, `column_model.py` (the PDE model), `solver.py` (CVODE), `state_layout.py`, isotherm and kinetic models, the species catalog, `bed_architectures/`, `sparsity_patterns/`. |
-| `post_processing/` | Simulation context, step metrics, cycle KPIs, profile plots and campaign post-processing. |
-| `utils/` | Support packages: `run/` (run folders, validation, resume), `tvsa/` (step sequences, termination, paths), `css/` (CSS loop and report), `nsga2/` (campaign evaluation, checkpoints), `solver/` (events, linear-solver options, outcomes), `postprocessing/`, `column/`, plus `provenance.py`, `logger.py`, `version.py`. |
+| `core/` | The simulation engine: `TVSA_cycle.py`, `column_model_factory.py`, `column_model_input.py`, `column_model.py` (the partial differential equation (PDE) model), `solver.py` (CVODE), `state_layout.py`, isotherm and kinetic models, the species catalog, `bed_architectures/`, `sparsity_patterns/`. |
+| `post_processing/` | Simulation context, step metrics, cycle key performance indicators (KPIs), profile plots and campaign post-processing. |
+| `utils/` | Support packages: `run/` (run folders, validation, resume), `tvsa/` (step sequences, termination, paths), `css/` (the cyclic steady state (CSS) loop and report), `nsga2/` (campaign evaluation, checkpoints), `solver/` (events, linear-solver options, outcomes), `postprocessing/`, `column/`, plus `provenance.py`, `logger.py`, `version.py`. |
 
 A clone also has:
 
@@ -66,10 +66,10 @@ core/TVSA_cycle.py                 one TVSA_Cycle per sequence (per cycle in CSS
 core/column_model_factory.py       ColumnModelInput, one per step
         │
         ▼
-core/column_model.py               ColumnModelMoL._bind_inputs()      ⚠ maintainer review
+core/column_model.py               ColumnModelMoL._bind_inputs()        maintainer review
         │
         ▼
-core/solver.py → saved results → post_processing/                     ⚠ maintainer review
+core/solver.py → saved results → post_processing/                       maintainer review
 ```
 
 Boundaries:
@@ -98,10 +98,10 @@ subcommands (`steps`, `css`, `nsga2`, `validate`) share one set of case flags; `
 copies the starter kit. Both, the launchers in `runners/` and the internal workflows are
 described in [01 — Inputs §3](01_inputs.md#3-entry-points).
 
-## 5. Runtime Configuration Boundary
+## 5. Runtime configuration boundary
 
 The resolved case, `ExperimentConfig`, is the last object a user writes. Everything below it in
-the layer map of §2 narrows that one document (one campaign, then one step, then one model);
+the layer map of §2 narrows that one document (one resolved case, then one step, then one model);
 nothing downstream decides a value again or changes it. The document that was resolved is the
 document that is saved and the document that runs.
 
@@ -109,17 +109,17 @@ A new public value starts in `src/pydac/inputs/defaults/`: the default tree driv
 accepted paths, basic types, serialization, frozen cases and the generated JSON Schema. If the
 model must read the new value, its binding in `src/pydac/core/column_model.py` goes through
 maintainer review. The whole chain, with the file and function at every step, is in
-[02 — pyDAC Core §7](02_pydac_core.md#7-where-one-public-input-reaches-the-physics) and the
+[02 — pyDAC core §7](02_pydac_core.md#7-where-one-public-input-reaches-the-physics) and the
 procedure in [01 — Inputs §10.1](01_inputs.md#101-adding-a-public-input).
 
-## 6. What A Run Actually Does
+## 6. What a run actually does
 
 ### 6.1 The whole picture
 
-A fresh step run, `pydac steps --case my_case.json`:
+A fresh step run, `pydac steps --case PATH`:
 
 ```text
- pydac steps --case my_case.json           (or Run on runners/run_steps_simulation.py)
+ pydac steps --case PATH                   (or Run on runners/run_steps_simulation.py)
   │
   ├─ 1. RESOLVE THE CASE ─────────────────────────────────────────────────────
   │    cli.py :: _run_fresh() → inputs/case_terminal.py :: resolve_runner_experiment()
@@ -135,7 +135,7 @@ A fresh step run, `pydac steps --case my_case.json`:
   │    ├─ utils/run/validation.py :: validate_step_case()   (CSS: validate_css_case)
   │    ├─ utils/run/validation.py :: warn_advanced_sparsity_options()
   │    └─ api.py :: run_folder() → utils/run/config.py :: make_base_folder()
-  │           └─▶ "simulation_results/step_mode/[TAG_]packed_bed_HASH"
+  │           └─▶ "simulation_results/step_mode/[TAG_]<architecture>_HASH"
   │    --dry-run  → print the run folder, STOP (exit 0)
   │    api.py :: _claim()   refuse an occupied folder, or delete it with --overwrite
   │
@@ -158,17 +158,17 @@ A fresh step run, `pydac steps --case my_case.json`:
   │                            │
   │                            │ 5. BUILD THE MODEL
   │                            ├─ column_factory.build_column_model(step=..., initial_state=..., solver_options=...)
-  │                            │      └─▶ ColumnModelInput → ColumnModelMoL      ⚠
+  │                            │      └─▶ ColumnModelInput → ColumnModelMoL      maintainer review
   │                            │
   │                            │ 6. SOLVE (solve=true)
   │                            ├─ core/solver.py :: Solver(adsorber, run_base_folder)
-  │                            ├─ SimulationContext.from_model(), runtime report     ⚠
+  │                            ├─ SimulationContext.from_model(), runtime report     maintainer review
   │                            ├─ solver.solve_cvode()   CVODE (BDF), direct sparse solver (dense if use_sparsity=false)
   │                            │      └─▶ <step>/provenance/   (the solve record)
   │                            ├─ solver.save_results()  → <step>/sol.pkl
   │                            └─ context and runtime report saved after a successful solve
   │                            │
-  │                            │ 7. POST-PROCESS THE STEP                            ⚠
+  │                            │ 7. POST-PROCESS THE STEP                            maintainer review
   │                            ├─ StepPostProcessor(adsorber, solver).compute_step_metrics()
   │                            ├─ StepMetricsStore.save()  → <step>/kpis.csv, kpis.pkl
   │                            └─ plotter.plot_all_profiles()  only with plot_profiles
@@ -186,12 +186,12 @@ Two things to keep in mind before the detail:
    `resolved_config.json` is written in stage 4, before stage 5. The checks made while the
    model is built and the saved-context compatibility checks come later, still before any
    integration. Whatever fails later, the exact input of the run is already on disk.
-2. **The per-step loop (stages 5–7) is the same for every run.** A CSS run and an NSGA-II
+2. **The per-step loop (stages 5–7) is the same for every run.** A CSS run and a non-dominated sorting genetic algorithm II (NSGA-II)
    campaign do not reimplement solving, context capture, step metrics or plotting: they wrap
    `TVSA_Cycle` in an outer loop (§8).
 
 Each stage, with what it reads, decides and writes, is in
-[02 — pyDAC Core §2–§3](02_pydac_core.md#2-from-the-command-or-api-to-the-cycle-runner).
+[02 — pyDAC core §2–§3](02_pydac_core.md#2-from-the-command-or-api-to-the-cycle-runner).
 
 ### 6.2 The files a run visits
 
@@ -209,23 +209,23 @@ revisit several). All paths are under `src/pydac/`.
 | 7 | [`utils/run/config.py`](../../src/pydac/utils/run/config.py) | `make_base_folder()`: the run folder from the output root, the run mode, `extra_tag` and the first eight characters of the case fingerprint. |
 | 8 | [`workflows/orchestrator_TVSA_steps.py`](../../src/pydac/workflows/orchestrator_TVSA_steps.py) | `run_steps_simulation()`: the runtime view, the results folder, the resolved case on disk, one `TVSA_Cycle`. It also sets the numerical libraries to one thread. |
 | 9 | [`config/launch.py`](../../src/pydac/config/launch.py) | `resolve_experiment_config()`: the one place `ExperimentConfig` becomes `CycleConfig`, for every workflow. |
-| 10 | [`config/cycle.py`](../../src/pydac/config/cycle.py) | `CycleConfig` (one campaign) and `ColumnModelConfig` (one step): the runtime records the factory reads. |
+| 10 | [`config/cycle.py`](../../src/pydac/config/cycle.py) | `CycleConfig` (one resolved case) and `ColumnModelConfig` (one step): the runtime records the factory reads. |
 | 11 | [`utils/tvsa/paths.py`](../../src/pydac/utils/tvsa/paths.py) | `resolve_spatial_base_folder()`: `1D_mode` for `grid.nr = 1`, else `2D_mode`. |
 | 12 | [`utils/provenance.py`](../../src/pydac/utils/provenance.py) | `start_activity()`: the run's provenance record. |
 | 13 | [`utils/tvsa/cycle_steps.py`](../../src/pydac/utils/tvsa/cycle_steps.py) | `build_cycle_steps()` / `build_repeating_cycle_steps()`: `execution.cycle_steps` as the ordered list of steps. |
 | 14 | [`core/TVSA_cycle.py`](../../src/pydac/core/TVSA_cycle.py) | `TVSA_Cycle`: the per-step loop, the step log, context capture, the hand-off of fields between steps. |
 | 15 | [`core/column_model_factory.py`](../../src/pydac/core/column_model_factory.py) | `ColumnModelFactory`: builds the isotherm and kinetic objects once per `TVSA_Cycle`, then one `ColumnModelMoL` per step. |
 | 16 | [`core/column_model_input.py`](../../src/pydac/core/column_model_input.py) | `ColumnModelInput`, `AdsorptionModelBundle`: the plain data passed into the model. |
-| 17 | [`core/column_model.py`](../../src/pydac/core/column_model.py) | `ColumnModelMoL`: the PDE model. ⚠ Maintainer review. |
+| 17 | [`core/column_model.py`](../../src/pydac/core/column_model.py) | `ColumnModelMoL`: the PDE model. Maintainer review. |
 | 18 | [`core/solver.py`](../../src/pydac/core/solver.py) | `Solver`: runs CVODE with its events, writes the step's solve record, saves and reloads `sol.pkl`, returns dimensional fields. |
-| 19 | [`post_processing/context/`](../../src/pydac/post_processing/context/) | `SimulationContext`, `SimulationContextStore`, `RuntimeReportStore`: `simulation_context.pkl` and `resolved_runtime.json`. ⚠ |
-| 20 | [`post_processing/profiles/step_post_processing.py`](../../src/pydac/post_processing/profiles/step_post_processing.py) | `StepPostProcessor`: uses the prepared results in memory when present, else loads the saved step; computes `StepMetrics`. ⚠ |
-| 21 | [`post_processing/metrics/step_metrics_store.py`](../../src/pydac/post_processing/metrics/step_metrics_store.py) | `StepMetricsStore`: prints and saves `kpis.csv`, `kpis.pkl` and `metrics_provenance.json`. ⚠ |
-| 22 | [`post_processing/profiles/step_plotting.py`](../../src/pydac/post_processing/profiles/step_plotting.py) | `ProfilesPlotter.plot_all_profiles()`: the profile plots under `<step>/profiles/`. ⚠ |
+| 19 | [`post_processing/context/`](../../src/pydac/post_processing/context/) | `SimulationContext`, `SimulationContextStore`, `RuntimeReportStore`: `simulation_context.pkl` and `resolved_runtime.json`. Maintainer review. |
+| 20 | [`post_processing/profiles/step_post_processing.py`](../../src/pydac/post_processing/profiles/step_post_processing.py) | `StepPostProcessor`: uses the prepared results in memory when present, else loads the saved step; computes `StepMetrics`. Maintainer review. |
+| 21 | [`post_processing/metrics/step_metrics_store.py`](../../src/pydac/post_processing/metrics/step_metrics_store.py) | `StepMetricsStore`: prints and saves `kpis.csv`, `kpis.pkl` and `metrics_provenance.json`. Maintainer review. |
+| 22 | [`post_processing/profiles/step_plotting.py`](../../src/pydac/post_processing/profiles/step_plotting.py) | `ProfilesPlotter.plot_all_profiles()`: the profile plots under `<step>/profiles/`. Maintainer review. |
 | 23 | [`utils/logger.py`](../../src/pydac/utils/logger.py) | `log_to()`: copies everything printed during one step into `<step>/log.txt`. |
 
 Files 1–16 are configuration and orchestration. Files 17 and 19–22 are the physics and
-reporting core marked ⚠: read them freely, change them only after maintainer review. The rule
+reporting core, marked "Maintainer review" in the table: read them freely, change them only after maintainer review. The rule
 covers the whole `post_processing/` folder, including the files that only save or plot.
 
 ### 6.3 The condensed call stack
@@ -253,28 +253,28 @@ cli.main()                                       cli.py
                      └─ for step in steps: ._run_step()
                          ├─ log_to()             utils/logger.py
                          ├─ column_factory.build_column_model()
-                         │   └─ ColumnModelMoL(...)          core/column_model.py      ⚠
+                         │   └─ ColumnModelMoL(...)          core/column_model.py      maintainer review
                          ├─ Solver(adsorber, ...)            core/solver.py
-                         ├─ SimulationContext.from_model()   post_processing/context/  ⚠
-                         ├─ RuntimeReportStore.from_model()  post_processing/context/  ⚠
+                         ├─ SimulationContext.from_model()   post_processing/context/  maintainer review
+                         ├─ RuntimeReportStore.from_model()  post_processing/context/  maintainer review
                          ├─ solver.solve_cvode()
                          ├─ solver.save_results()
-                         ├─ StepPostProcessor(...)           post_processing/profiles/ ⚠
+                         ├─ StepPostProcessor(...)           post_processing/profiles/ maintainer review
                          │   ├─ .describe()
                          │   └─ .compute_step_metrics()
-                         ├─ StepMetricsStore.save()          post_processing/metrics/  ⚠
-                         └─ plotter.plot_all_profiles()      post_processing/profiles/ ⚠
+                         ├─ StepMetricsStore.save()          post_processing/metrics/  maintainer review
+                         └─ plotter.plot_all_profiles()      post_processing/profiles/ maintainer review
 ```
 
-## 7. Artifacts On Disk
+## 7. Artifacts on disk
 
 The step run of §6, on the 1D case `pydac validate --set grid.nz=25 --set grid.nr=1
---export-case my_case.json`, writes:
+--export-case PATH`, writes:
 
 ```text
 simulation_results/
 └── step_mode/                          ← run mode
-    └── packed_bed_10b76906/            ← run folder: [TAG_]packed_bed_ + case fingerprint
+    └── packed_bed_10b76906/            ← run folder: [TAG_]<architecture>_ + case fingerprint
         └── 1D_mode/                    ← results folder: grid.nr = 1
             ├── resolved_config.json    ← written first, before any model is built
             ├── case_metadata.json      ← fingerprint of the case
@@ -320,9 +320,9 @@ Who writes what, and when:
 Feeding `resolved_config.json` back with `--case` runs the same case again. The layout of a
 CSS run and of a campaign, and how to read them, are in the user guide,
 [Results](../guide/06_results.md); the step files in
-[06 — Post-Processing §21](06_post_processing.md#21-file-outputs).
+[06 — Post-processing §21](06_post_processing.md#21-file-outputs).
 
-## 8. How CSS And NSGA-II Differ
+## 8. How CSS and NSGA-II differ
 
 `TVSA_Cycle._run_step()` is the same in every run; only what wraps it changes:
 
@@ -334,23 +334,23 @@ CSS run and of a campaign, and how to read them, are in the user guide,
 | Profile plots | every step, with `execution.plot_profiles` | `plot_profiles`: step profiles in every cycle where it is true (globally or in `execution.cycle_options`); `plot_final_cycle_profiles`: the reported cycle, from saved solutions; `plot_cyclic_profiles` and `--report`: the CSS figures in `plots_css/` | candidates run with `plot_profiles` false; campaign figures in `results/figures/` |
 | `resolved_config.json` | one, in the results folder | one, in the results folder | one per candidate folder while it runs; the candidate folder is then emptied and the case is kept in its record in `results/candidate_records/` |
 
-The campaign is described in [07 — NSGA-II Optimization](07_nsga2_optimization.md), the step
-sequences in [05 — Cycle Steps §1](05_cycle_steps.md#1-cycle-construction).
+The campaign is described in [07 — NSGA-II optimization](07_nsga2_optimization.md), the step
+sequences in [05 — Cycle steps §1](05_cycle_steps.md#1-cycle-construction).
 
-## 9. Where Do I Put My Hands?
+## 9. Where do I put my hands?
 
 | I want to… | Touch |
 |---|---|
 | Change a value for one run | `--set`, a preset with `--config`, or `DEVELOPMENT_SETTINGS` in a runner |
 | Change a default value of the package | `src/pydac/inputs/defaults/<domain>.py` |
-| Run a saved case again | `--case <file>.json` |
-| Save a case to run again | `--export-case <file>.json` |
+| Run a saved case again | `--case PATH` |
+| Save a case to run again | `--export-case PATH` |
 | Add a public input | [01 — Inputs §10.1](01_inputs.md#101-adding-a-public-input) |
 | Add a species, an isotherm or a kinetic model | [CONTRIBUTING](../../CONTRIBUTING.md#extending-the-model) and [01 — Inputs §10.2](01_inputs.md#102-adding-or-changing-an-isotherm-or-kinetic-model); an isotherm or kinetic law from user code: [Extending pyDAC](../guide/08_extending.md) |
 | Change the optimizer bounds, workers or seed | the `pydac nsga2` flags ([user guide](../guide/05_optimization.md)) |
 | Add a bed architecture | `src/pydac/core/bed_architectures/` and its registry ([01 — Inputs §10.3](01_inputs.md#103-packed-bed-architecture-ownership)) |
-| Change a PDE term, closure or boundary condition | ⚠ `src/pydac/core/column_model.py`, maintainer review |
-| Change a KPI formula, the context schema or a post-processing output | ⚠ `src/pydac/post_processing/`, maintainer review |
+| Change a PDE term, closure or boundary condition | `src/pydac/core/column_model.py`, maintainer review |
+| Change a KPI formula, the context schema or a post-processing output | `src/pydac/post_processing/`, maintainer review |
 
 When something went wrong:
 
@@ -359,13 +359,13 @@ When something went wrong:
 | A setting I changed had no effect | [01 — Inputs §2](01_inputs.md#2-the-mental-map), precedence |
 | Which folder did my run write to | the `Run folder:` line printed at start and end, or §7 |
 | A step says "no saved solution exists" | `solve=false` for a step without `<step>/sol.pkl` in that results folder ([02 §4](02_pydac_core.md#4-solve-vs-reuse-per-step)) |
-| The exact case that ran, without running again | `resolved_config.json` in the results folder, or `pydac validate --case <that file> --print-resolved` |
-| A KPI looks wrong | [06 — Post-Processing](06_post_processing.md) for the formula; `src/pydac/post_processing/` for the code ⚠ |
+| The exact case that ran, without running again | `resolved_config.json` in the results folder, or `pydac validate --case PATH --print-resolved` |
+| A KPI looks wrong | [06 — Post-processing](06_post_processing.md) for the formula; `src/pydac/post_processing/` for the code (maintainer review) |
 | The model must read a new input | [01 — Inputs §10](01_inputs.md#10-extending-the-contract); `_bind_inputs()` is under maintainer review |
 | No profile plots for an intermediate CSS cycle | `plot_profiles` was false for that cycle; `plot_final_cycle_profiles` draws only the reported cycle (§8) |
-| Where is the PDE itself | mapped to the code in [04 — Governing Equations](04_governing_equations.md); assembled by the RHS of [02 — pyDAC Core](02_pydac_core.md) |
+| Where is the PDE itself | mapped to the code in [04 — Governing equations](04_governing_equations.md); assembled by the right-hand side (RHS) of [02 — pyDAC core](02_pydac_core.md) |
 
-## 10. Compactness And Ownership Guards
+## 10. Compactness and ownership guards
 
 A new responsibility gets one cohesive owner instead of growing the command, the API or the
 configuration engine. `cli.py` and `api.py` stay thin: they decide and report, the workflows

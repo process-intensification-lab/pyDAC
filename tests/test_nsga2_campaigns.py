@@ -118,6 +118,33 @@ def test_robust_pareto_resume_stops_where_the_uninterrupted_campaign_stops(monke
     assert snapshot() == before
 
 
+@pytest.mark.parametrize("constraints, steam, warns", [
+    (nsga2.NSGA2Constraints(), True, True),
+    # steam_condensation is ignored on a wall-heated cycle, so nothing is active.
+    (nsga2.NSGA2Constraints(steam_condensation=True), False, True),
+    (nsga2.NSGA2Constraints(steam_condensation=True), True, False),
+    (nsga2.NSGA2Constraints(purity_min=0.95), False, False),
+    (nsga2.NSGA2Constraints(eq_work_max=25.0), False, False),
+])
+def test_unconstrained_warning_fires_only_without_an_active_constraint(constraints, steam, warns):
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        assert nsga2.warn_if_unconstrained(constraints, is_steam_assisted=steam) is warns
+    assert [str(w.message).startswith("NSGA-II runs without any product constraint")
+            for w in caught] == ([True] if warns else [])
+
+
+def test_an_unconstrained_campaign_warns_when_it_starts(monkeypatch, tmp_path):
+    monkeypatch.setattr(nsga2, "TVSAOptimizationProblem", CampaignToyProblem)
+    termination = nsga2.NSGA2TerminationConfig(mode="fixed_generations")
+    with pytest.warns(UserWarning, match="without any product constraint"):
+        nsga2.run_nsga2_optimization(_toy_config(tmp_path), pop_size=4, n_generations=1,
+                                     seed=17, termination_config=termination,
+                                     run_postprocessing=False)
+
+
 def test_robust_campaign_cannot_resume_from_a_checkpoint_without_termination_state(tmp_path):
     from pymoo.algorithms.moo.nsga2 import NSGA2
 
@@ -339,3 +366,38 @@ def test_refused_continuation_writes_nothing_and_starts_no_workers(monkeypatch, 
         )
     assert _files(folder) == before
     assert pools == []
+
+
+def test_a_campaign_on_a_cycle_without_desorption_is_refused(tmp_path):
+    import pydac
+
+    bounds = {name: tuple(pair) for name, pair in BOUNDS.items()}
+    for steps, expected in ((["ads", "blow", "heat", "s_des", "cool", "press"], "s_des"),
+                            (["ads", "blow", "heat", "w_des", "cool", "press"], "w_des")):
+        config = nsga2.NSGA2RunConfig(
+            experiment=pydac.load_case(settings={"execution.cycle_steps": steps}),
+            base_folder=str(tmp_path), bounds=bounds, constraints=nsga2.NSGA2Constraints())
+        assert config.desorption_step == expected
+    with pytest.raises(ValueError, match="needs `s_des` or `w_des`"):
+        nsga2.NSGA2RunConfig(
+            experiment=pydac.load_case(settings={"execution.cycle_steps": ["ads", "blow", "heat", "cool", "press"]}),
+            base_folder=str(tmp_path), bounds=bounds, constraints=nsga2.NSGA2Constraints())
+
+
+def test_a_checkpoint_without_a_desorption_step_is_refused_on_resume(monkeypatch, tmp_path):
+    """A checkpoint this version no longer accepts is a configuration refusal, not a traceback."""
+    from pydac.utils import provenance
+
+    config = nsga2.NSGA2RunConfig(
+        base_folder=str(tmp_path),
+        bounds={name: tuple(pair) for name, pair in BOUNDS.items()},
+        constraints=nsga2.NSGA2Constraints(),
+    )
+    identity = _identity(config, termination=nsga2.NSGA2TerminationConfig(mode="fixed_generations"))
+    identity["definition"]["experiment"]["execution"]["cycle_steps"] = ["ads", "blow", "heat", "cool", "press"]
+    results = tmp_path / "results"
+    results.mkdir()
+    (results / nsga2.CHECKPOINT_STATE_FILENAME).write_text(json.dumps({"campaign_identity": identity}))
+    monkeypatch.setattr(provenance, "require_same_version", lambda *args, **kwargs: None)
+    with pytest.raises(ConfigurationError, match="cannot be resumed.*s_des"):
+        nsga2._campaign_from_checkpoint(tmp_path)

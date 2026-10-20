@@ -5,7 +5,6 @@ visualize outlet histories across a whole converged cycle, including step
 styling, field aliases, and cooldown-jump handling.
 
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
 """
 
 import json
@@ -23,6 +22,7 @@ from pydac.core.species_catalog import get_species_properties
 from pydac.utils.postprocessing import cyclic_profiles as _profile_utils
 from pydac.utils.postprocessing.saved_solution import saved_solution_view
 from pydac.utils.postprocessing.outlet import outlet_mole_fractions
+from pydac.utils.paths import display_path
 from pydac.utils.run import (
     infer_desorption_step_from_results,
     infer_results_base_folder,
@@ -813,7 +813,7 @@ class CyclicSteadyStateProfiles:
         if save:
             out_path = os.path.join(self.plot_folder, f"{spec.filename}.{fmt}")
             fig.savefig(out_path, dpi=300, bbox_inches="tight")
-            print(f"[Saved] {out_path}")
+            print(f"[Saved] {display_path(out_path)}")
 
         if show:
             plt.show()

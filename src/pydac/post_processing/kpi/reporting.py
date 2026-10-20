@@ -11,6 +11,7 @@ import pandas as pd
 from pydac.post_processing.metrics.cycle_metrics import STEP_KEY_TO_CYCLE_STEP
 
 from pydac.post_processing.kpi.cycle_kpis import CycleKPIs, EquivalentWorkConditions, MJ_PER_KWH
+from pydac.utils.paths import display_path
 
 
 STEP_DISPLAY_NAMES = {
@@ -956,7 +957,7 @@ class KPIReporting:
         save_record(self.output_folder, provenance,
                     pointer=self._with_cycle_label("report_provenance.json"))
 
-        print(f"[Saved] {txt_path}")
-        print(f"[Saved] {csv_path}")
-        print(f"[Saved] {json_path}")
+        print(f"[Saved] {display_path(txt_path)}")
+        print(f"[Saved] {display_path(csv_path)}")
+        print(f"[Saved] {display_path(json_path)}")
         return saved_paths

@@ -1,4 +1,5 @@
-# Citation metadata. At each GitHub release Zenodo adds the DOI and the release date.
+# Citation metadata. `doi` is the Zenodo concept DOI: it always resolves to the latest
+# version. Zenodo reads this file at each GitHub release and does not write into it.
 # The pyDAC paper is in `references` (a ChemRxiv preprint for now).
 cff-version: 1.2.0
 message: "If you use pyDAC in your research, please cite it as below."
@@ -18,7 +19,8 @@ authors:
     affiliation: "Eindhoven University of Technology"
     orcid: "https://orcid.org/0000-0002-2903-7443"
 license: MIT
-version: 3.0.1
+version: 3.1.0
+doi: 10.5281/zenodo.23319859
 repository-code: "https://github.com/process-intensification-lab/pyDAC"
 keywords:
   - direct air capture

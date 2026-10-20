@@ -7,8 +7,6 @@ reference scaling, and KPI state bookkeeping for TVSA steps.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
 
 import math
@@ -19,6 +17,7 @@ from scipy.constants import gas_constant as R_gas
 from scipy.sparse import csr_array, issparse
 from pydac.core.bed_architectures import (
     CHANNELING_FLOW_MODELS,
+    ClosureInputs,
     PackedBedDesign,
     ParticleProperties,
     ResolvedArchitecture,
@@ -31,6 +30,7 @@ from pydac.core.bed_architectures import (
     resolve_packed_bed_radial_pressure_drop,
     resolve_packed_bed_structure,
     resolve_packed_bed_thermal_transport,
+    registered_bed_architecture,
     validate_channeling_support,
 )
 from pydac.core.column_model_input import ColumnModelInput
@@ -485,8 +485,16 @@ class ColumnModelMoL:
         )
         self.particle_properties = particle
 
-        design = PackedBedDesign(**self.bed_config["design"])
-        resolved = resolve_packed_bed_structure(design, particle)
+        provider = registered_bed_architecture(self.bed_architecture)
+        self.bed_architecture_provider = provider
+        if provider is None:
+            design = PackedBedDesign(**self.bed_config["design"])
+            resolved = resolve_packed_bed_structure(design, particle)
+        else:
+            design = provider.build_design(
+                self.bed_config["design"], self.bed_config["material"]
+            )
+            resolved = provider.resolve_structure(design, particle)
 
         self.bed_design = design
         self.resolved_structure = resolved
@@ -1358,7 +1366,9 @@ class ColumnModelMoL:
 
     def _resolve_bed_pressure_drop(self):
         """Resolve and bind the selected architecture's pressure-drop law."""
-        return self._resolve_packed_bed_pressure_drop()
+        if self.bed_architecture_provider is None:
+            return self._resolve_packed_bed_pressure_drop()
+        return self._resolve_registered_pressure_drop()
 
     def _resolve_packed_bed_pressure_drop(self):
         """Resolve and bind the detached packed-bed pressure-drop law.
@@ -1398,7 +1408,9 @@ class ColumnModelMoL:
 
     def _resolve_bed_dispersion(self):
         """Resolve material dispersion for the selected bed architecture."""
-        return self._resolve_packed_bed_dispersion()
+        if self.bed_architecture_provider is None:
+            return self._resolve_packed_bed_dispersion()
+        return self._resolve_registered_dispersion()
 
     def _resolve_packed_bed_dispersion(self):
         """Resolve the packed-bed material dispersion and Pe_m groups."""
@@ -1423,7 +1435,9 @@ class ColumnModelMoL:
 
     def _resolve_bed_thermal_transport(self):
         """Resolve thermal transport for the selected bed architecture."""
-        return self._resolve_packed_bed_thermal_transport()
+        if self.bed_architecture_provider is None:
+            return self._resolve_packed_bed_thermal_transport()
+        return self._resolve_registered_thermal_transport()
 
     def _resolve_packed_bed_thermal_transport(self):
         """Resolve and expose the detached packed-bed thermal contract."""
@@ -1507,6 +1521,85 @@ class ColumnModelMoL:
 
         return resolved
 
+    def _closure_inputs(self):
+        """Return the resolved step quantities a registered architecture's closures read."""
+        return ClosureInputs(
+            eps_flow=self.eps_flow,
+            viscosity=float(np.asarray(self.mu_g_mix).item()),
+            molecular_diffusivity=self.D_m,
+            reynolds=self.Re,
+            schmidt=self.Sc,
+            prandtl=self.Pr,
+            gas_conductivity=self.lambda_g_mix,
+            particle_conductivity=self.lambda_p,
+            superficial_inlet_velocity=self.u_inlet,
+            particle_diameter=self.d_p,
+            bed_length=self.L_b,
+            bed_radius=self.R_b,
+            bed_diameter=self.d_b,
+            reference_velocity=self.u_ref,
+            reference_pressure=self.p_ref,
+            is_1d=self.is_1d,
+            gas_species=tuple(self.gas_species),
+        )
+
+    def _resolve_registered_pressure_drop(self):
+        """Bind a registered architecture's pressure-drop law."""
+        self.pressure_drop_law = self.bed_architecture_provider.resolve_pressure_drop(
+            self.bed_design, self._closure_inputs()
+        )
+        return self.pressure_drop_law
+
+    def _resolve_registered_dispersion(self):
+        """Bind a registered architecture's material dispersion and Pe_m groups."""
+        resolved = self.bed_architecture_provider.resolve_dispersion(
+            self.bed_design, self._closure_inputs()
+        )
+        self.resolved_dispersion = resolved
+        self.dispersion_model = resolved["model"]
+        self.Disp_ax = resolved["Disp_ax"]
+        self.Disp_rad = resolved["Disp_rad"]
+        self.inv_Pe_m_ax = resolved["inv_Pe_m_ax"]
+        self.inv_Pe_m_rad = resolved["inv_Pe_m_rad"]
+        return resolved
+
+    def _resolve_registered_thermal_transport(self):
+        """Bind a registered architecture's thermal result.
+
+        `wall_bed_htc` is the coefficient that couples bed and wall in this
+        mode: the overall coefficient in 1D, the bed-side h_w in 2D.  The
+        wall-HTC overrides are packed-bed bypasses and are refused here.
+        """
+        if self.U_w_override is not None or self.h_bed_wall_override is not None:
+            raise ValueError(
+                f"Bed architecture {self.bed_architecture!r} resolves its own "
+                "bed-to-wall coefficient; the wall HTC overrides apply only to "
+                "the packed bed. Set them to null."
+            )
+        resolved = self.bed_architecture_provider.resolve_thermal_transport(
+            self.bed_design, self._closure_inputs()
+        )
+        self.resolved_transport = resolved
+        self.lambda_ax = resolved.lambda_ax
+        self.lambda_rad = resolved.lambda_rad
+        self.inv_Pe_h_ax = self.lambda_ax / self.u_ref / self.L_b
+        self.inv_Pe_h_rad = self.lambda_rad / self.u_ref / self.R_b
+        self.h_w = resolved.h_wall
+        # Same operations, in the same order, as `dixon_overall_coefficient`
+        # (packed_bed.py:744-746), so a packed-bed clone binds the same float.
+        self.inv_Bi_h = 1.0 / (self.h_w * (self.d_b / 2.0) / self.lambda_rad)
+        if self.is_1d:
+            self.U_w = resolved.wall_bed_htc
+            self.h_int = self.U_w
+        else:
+            self.h_int = self.h_w
+
+        print(f"\nInitializing {self.bed_architecture} thermal transport...")
+        print(f"Axial effective conductivity: {self.lambda_ax:.2f} W/m/K")
+        print(f"Radial effective conductivity: {self.lambda_rad:.4f} W/m/K")
+        print(f"Bed-to-wall coupling coefficient: {np.asarray(self.h_int).item():.2f} W/m2/K")
+        return resolved
+
     def _finalize_resolved_architecture(self):
         """Expose one JSON-safe, inspectable architecture context."""
         self.resolved_architecture = ResolvedArchitecture(
@@ -1516,9 +1609,27 @@ class ColumnModelMoL:
             transport=self.resolved_transport,
         )
         context = self.resolved_architecture.to_context_dict()
-        heat_transfer_model = "dixon_1996"
+        provider = self.bed_architecture_provider
+        # wall_htc: the law of the bed-side h_w. overall_wall_htc: the lumped U_w
+        # of 1D (Dixon 1996 from h_w and lambda_rad, or the override); 2D has none.
+        if provider is not None:
+            wall_htc_model = provider.wall_htc_model
+            overall_wall_htc_model = wall_htc_model if self.is_1d else "none"
+        else:
+            wall_htc_model = (
+                "override"
+                if not self.is_1d and self.h_bed_wall_override is not None
+                else self.bed_design.wall_htc_model
+            )
+            if not self.is_1d:
+                overall_wall_htc_model = "none"
+            elif self.U_w_override is not None:
+                overall_wall_htc_model = "override"
+            else:
+                overall_wall_htc_model = "dixon_1996"
         context["resolved"]["models"] = {
-            "heat_transfer": heat_transfer_model,
+            "wall_htc": wall_htc_model,
+            "overall_wall_htc": overall_wall_htc_model,
             "pressure_drop": self.pressure_drop_law.name,
             "dispersion": self.dispersion_model,
         }
@@ -1526,7 +1637,6 @@ class ColumnModelMoL:
             context["resolved"]["models"]["stagnant_conductivity"] = (
                 self.bed_design.stagnant_conductivity_model
             )
-            context["resolved"]["models"]["wall_htc"] = self.bed_design.wall_htc_model
             context["resolved"]["models"]["flow"] = self.flow_model
             context["resolved"]["flow"] = {
                 "model": self.flow_model,
@@ -1559,6 +1669,8 @@ class ColumnModelMoL:
             "gas_composition_source": self.gas_property_composition_source,
             "dispersion_composition_source": self.dispersion_composition_source,
         }
+        if provider is not None and provider.provenance:
+            context["resolved"]["provenance"] = dict(provider.provenance)
         self.bed_architecture_context = context
         return context
 

@@ -634,6 +634,11 @@ def step_rules():
         for group in ("thermal", "pressure"):
             for name in step[group]:
                 rules[prefix + (group, name)] = positive_number(nullable=True)
+        rules[prefix + ("thermal", "external_htc_W_m2K")] = nonnegative_number(
+            "Heat-transfer coefficient [W/m2K] between the outer wall and the jacket; "
+            "0 is an adiabatic outer wall, null inherits the default.",
+            nullable=True,
+        )
         rules[prefix + ("horizon", "nominal_time_s")] = positive_number()
         rules[prefix + ("horizon", "event_max_time_s")] = positive_number(
             nullable=True

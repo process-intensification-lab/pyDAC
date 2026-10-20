@@ -6,6 +6,7 @@ import pickle
 import pandas as pd
 
 from pydac.post_processing.metrics.step_metrics import StepMetrics
+from pydac.utils.paths import display_path
 
 
 class StepMetricsStore:
@@ -106,7 +107,7 @@ class StepMetricsStore:
         )
         save_record(save_dir, provenance, pointer="metrics_provenance.json")
 
-        print(f"Step metrics successfully saved to '{save_path}' and '{csv_path}'")
+        print(f"Step metrics successfully saved to '{display_path(save_path)}' and '{display_path(csv_path)}'")
         return save_path
 
     def load(self, step_folder):

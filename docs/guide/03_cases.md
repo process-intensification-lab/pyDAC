@@ -73,6 +73,9 @@ pydac validate --set grid.nz=40 --set steps.s_des.flow.steam_mass_flow_kg_s=0.00
   a whole JSON object, which replaces the block: use it to choose another model. One
   existing key inside the block can also be set alone, for example
   `adsorption.kinetics.CO2.parameters.k_LDF_s_inv=0.004`.
+- An object for any other block sets its fields one by one, as the same nested block does in
+  Python: `--set 'sorbent={"density_kg_m3": 800}'` is `sorbent.density_kg_m3=800`, and
+  `{"cycle": {"ads": {...}}}` is `cycle.ads....`.
 - In Python, `settings` is a mapping with the same paths and Python values, or a list of
   `"PATH=VALUE"` strings exactly as `--set` takes them.
 
@@ -276,7 +279,7 @@ python -c "import pydac, pathlib; print(pathlib.Path(pydac.__file__).parent / 'c
 ```
 
 From pyDAC 3.0.0 on, the schema of each release is also published at its release tag:
-`https://raw.githubusercontent.com/process-intensification-lab/pyDAC/v3.0.0/src/pydac/config/json_schema/experiment.schema.json`.
+`https://raw.githubusercontent.com/process-intensification-lab/pyDAC/v3.1.0/src/pydac/config/json_schema/experiment.schema.json`.
 Point your editor's JSON schema setting for your case files at either location. Do not
 add a `$schema` key to a case: the case format has no such field, and the case is refused.
 

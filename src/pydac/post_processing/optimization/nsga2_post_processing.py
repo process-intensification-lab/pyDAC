@@ -6,12 +6,9 @@ exploratory plots and comparisons for a specific optimization campaign.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
 
 import json
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -24,6 +21,7 @@ from scipy.stats import gaussian_kde
 
 
 from pydac.utils.flow_transforms import STEAM_FEED_TEMPERATURE_K, steam_density_from_pressure
+from pydac.utils.paths import display_path
 
 
 class NSGA2_pp:
@@ -42,7 +40,7 @@ class NSGA2_pp:
             self.X = data["X"]
             self.F = data["F"]
         else:
-            print(f"[ERROR] Pareto front not found: {self.pareto_path}")
+            print(f"[ERROR] Pareto front not found: {display_path(self.pareto_path)}")
             self.X = self.F = None
 
         if self.population_path.exists():
@@ -84,7 +82,7 @@ class NSGA2_pp:
         if save:
             fig_path = self.figures_folder / filename
             plt.savefig(fig_path, dpi=300)
-            print(f"[FIG] Saved Pareto front to {fig_path}")
+            print(f"[FIG] Saved Pareto front to {display_path(fig_path)}")
         else:
             plt.show()
         plt.close()
@@ -106,7 +104,7 @@ class NSGA2_pp:
         if save:
             fig_path = self.figures_folder / filename
             plt.savefig(fig_path, dpi=300)
-            print(f"[FIG] Saved full population plot to {fig_path}")
+            print(f"[FIG] Saved full population plot to {display_path(fig_path)}")
         else:
             plt.show()
         plt.close()
@@ -130,7 +128,7 @@ class NSGA2_pp:
         if save:
             fig_path = self.figures_folder / filename
             plt.savefig(fig_path, dpi=300)
-            print(f"[FIG] Saved population vs Pareto front to {fig_path}")
+            print(f"[FIG] Saved population vs Pareto front to {display_path(fig_path)}")
         else:
             plt.show()
         plt.close()
@@ -202,7 +200,7 @@ class NSGA2_pp:
         if save:
             path = self.figures_folder / "distributions_boxplot.pdf"
             plt.savefig(path, dpi=300)
-            print(f"[FIG] Saved enhanced boxplot to {path}")
+            print(f"[FIG] Saved enhanced boxplot to {display_path(path)}")
         else:
             plt.show()
         plt.close()
@@ -259,7 +257,6 @@ class NSGA2_pp:
             data=df_melted,
             x="Variable",
             y="Scaled Value",
-            # inner="quartile",
             cut=0,
             hue="Variable",
             density_norm="count",
@@ -287,7 +284,7 @@ class NSGA2_pp:
         if save:
             path = self.figures_folder / "distributions_violinplot.pdf"
             plt.savefig(path, dpi=300)
-            print(f"[FIG] Saved violin plot to {path}")
+            print(f"[FIG] Saved violin plot to {display_path(path)}")
         else:
             plt.show()
         plt.close()
@@ -351,7 +348,7 @@ class NSGA2_pp:
                 "Mode (unscaled)": [mode_unscaled_dict[v] for v in var_names]
             })
             df_modes.to_csv(save_path, index=False)
-            print(f"[CSV] Saved scaled and unscaled modes to: {save_path}")
+            print(f"[CSV] Saved scaled and unscaled modes to: {display_path(save_path)}")
 
         return mode_dict
 
@@ -361,21 +358,6 @@ class NSGA2_pp:
             return None
         with open(metadata_path, "r", encoding="utf-8") as handle:
             return json.load(handle)
-
-    def _load_decision_variable_names(self):
-        """
-        Return the decision-variable order for this campaign.
-
-        Preference order:
-        1. `pareto_bounds.csv` written by the NSGA-II orchestrator
-        2. known decision-variable columns for the current velocity-space setup
-        """
-        bounds_path = self.pareto_folder.parent / "pareto_bounds.csv"
-        if bounds_path.exists():
-            bounds_df = pd.read_csv(bounds_path)
-            if "variable" in bounds_df.columns:
-                return [str(v) for v in bounds_df["variable"].tolist()]
-        return ["t_ads", "t_heat", "t_des", "P_vac", "v_feed", "v_steam"]
 
     def _add_model_flow_columns(self, df):
         """
@@ -446,162 +428,4 @@ class NSGA2_pp:
 
         csv_path = self.pareto_folder / filename
         df.to_csv(csv_path, index=False)
-        print(f"[CSV] Saved Pareto front to {csv_path}")
-        
-                
-
-
-    def pandas_postprocess(self, threshold=10.0, pareto_csv_path="pareto_front.csv", save=True):
-        """
-        Analyze Pareto front CSV to find parameter ranges and patterns
-        associated with W_eq below a single given threshold.
-
-        Parameters
-        ----------
-        threshold : float
-            Upper limit for W_eq to consider "low-energy" cases (e.g., 10.0)
-        pareto_csv : str
-            Filename of the Pareto CSV (must exist in self.pareto_folder)
-        """
-        csv_path = self.pareto_folder / pareto_csv_path
-        csv_path = Path(csv_path)  # ensure it's a Path object
-        
-        if not csv_path.exists():
-            print(f"[ERROR] Pareto CSV not found: {csv_path}")
-            return
-
-        df = pd.read_csv(csv_path)
-        param_cols = self._load_decision_variable_names()
-        param_cols = [col for col in param_cols if col in df.columns]
-
-        if not param_cols:
-            print(
-                "[WARN] No decision-variable columns detected in Pareto CSV. "
-                "Skipping pandas postprocess summary."
-            )
-            return
-
-        threshold_tag = f"{threshold:g}".replace(".", "p")
-        save_paths = {}
-        if save:
-            export_dir = self.pareto_folder / f"postprocess_W_eq{threshold_tag}"
-            export_dir.mkdir(parents=True, exist_ok=True)
-            save_paths = {
-                "ranges": export_dir / "ranges.csv",
-                "top5": export_dir / "top5.csv",
-                "corr_weq": export_dir / "corr_eq_work.csv",
-                "corr_prod": export_dir / "corr_productivity.csv",
-                "combined_corr": export_dir / "combined_corr.csv",
-                "best10_stats": export_dir / "best10pct_stats.csv",
-            }
-
-        # --- 1. Parameter range detection ---
-        subset = df[df["eq_work"] < threshold]
-        if subset.empty:
-            print(f"[INFO] No points with W_eq < {threshold}")
-            return
-
-        ranges = subset[param_cols].agg(["min", "max"]).T
-        ranges.columns = [f"min (W_eq<{threshold})", f"max (W_eq<{threshold})"]
-        print(f"\n=== [1] Parameter ranges for W_eq < {threshold} ===")
-        print(ranges.to_string())
-        print("-" * 40)
-        if save:
-            ranges.to_csv(save_paths["ranges"])
-
-        # --- 2. Sorting ---
-        sorted_df = df.sort_values("eq_work")
-        top5 = sorted_df[["eq_work", "productivity"] + param_cols].head()
-        print("\n=== [2] Top 5 lowest W_eq cases ===")
-        print(top5)
-        print("-" * 40)
-        if save:
-            top5.to_csv(save_paths["top5"], index=False)
-
-        # --- 3. Correlation with W_eq ---
-        corr_weq = df.corr(numeric_only=True)["eq_work"].sort_values()
-        print("\n=== [3] Correlation with W_eq ===")
-        print(corr_weq)
-        print("-" * 40)
-        if save:
-            corr_weq.to_frame("Correlation with eq_work").to_csv(save_paths["corr_weq"])
-
-        # --- 4. Correlation with Productivity ---
-        corr_prod = df.corr(numeric_only=True)["productivity"].sort_values()
-        print("\n=== [4] Correlation with Productivity ===")
-        print(corr_prod)
-        print("-" * 40)
-        if save:
-            corr_prod.to_frame("Correlation with productivity").to_csv(save_paths["corr_prod"])
-
-        # --- Combined correlation ---
-        correlation_matrix = df.corr(numeric_only=True)[["eq_work", "productivity"]]
-        correlation_matrix = correlation_matrix.drop(["eq_work", "productivity"], errors="ignore")
-        correlation_matrix_sorted = correlation_matrix.reindex(
-            correlation_matrix["eq_work"].abs().sort_values(ascending=False).index
-        )
-        print("\n=== Combined Correlation with W_eq and Productivity ===")
-        print(correlation_matrix_sorted.round(3))
-        print("-" * 40)
-        if save:
-            correlation_matrix_sorted.round(3).to_csv(save_paths["combined_corr"])
-
-        # --- 5. Quantile filtering (best 10%) ---
-        q10 = df["eq_work"].quantile(0.10)
-        best_10 = df[df["eq_work"] <= q10]
-        print(f"\n=== [5] Best 10% W_eq cases (W_eq <= {q10:.2f}) ===")
-        desc_stats = best_10[param_cols].describe()
-        print(desc_stats)
-        print("-" * 40)
-        if save:
-            desc_stats.to_csv(save_paths["best10_stats"])
-
-        if save:
-            print("[SAVED] Postprocessing summary exported to CSV files:")
-            for path in save_paths.values():
-                print(f"  - {path}")
-
-    def _print_pandas_postprocess(self, save=True, df=None, best_10=None):
-        """
-        Print the results of the pandas postprocessing analysis.
-        This is a convenience method to call pandas_postprocess and print results.
-        """
-        # Scatter plot of all Pareto points (W_eq vs Productivity)
-        plt.figure(figsize=(8, 5))
-        sns.scatterplot(data=df, x="productivity", y="eq_work", hue=(df["eq_work"] < 10), palette={True: "red", False: "gray"})
-        plt.xlabel("Productivity")
-        plt.ylabel("W_eq [MJ/kg]")
-        plt.title("Pareto Front Colored by W_eq < 10")
-        plt.grid(True)
-        plt.tight_layout()
-        if save:
-            filename = "low_energy_pareto.pdf"
-            fig_path = self.figures_folder / filename
-            plt.savefig(fig_path, dpi=300)
-            print(f"[FIG] Saved comparison figure to {fig_path}")
-        else:
-            plt.show()
-        plt.close()
-
-        # KDE plots for best 10% W_eq cases
-        candidate_cols = self._load_decision_variable_names()
-        kde_cols = [col for col in candidate_cols if col in best_10.columns]
-        if not kde_cols:
-            print("[WARN] No decision-variable columns available for KDE plots.")
-            return
-
-        plt.figure(figsize=(12, 8))
-        for i, col in enumerate(kde_cols):
-            plt.subplot(3, 3, i + 1)
-            sns.kdeplot(data=best_10[col], fill=True)
-            plt.title(col)
-            plt.grid(True)
-        plt.suptitle("KDE Plots: Best 10% W_eq Cases", fontsize=14)
-        if save:
-            filename = "KDE_plots.pdf"
-            fig_path = self.figures_folder / filename
-            plt.savefig(fig_path, dpi=300)
-            print(f"[FIG] Saved comparison figure to {fig_path}")
-        else:
-            plt.show()
-        plt.close()
+        print(f"[CSV] Saved Pareto front to {display_path(csv_path)}")

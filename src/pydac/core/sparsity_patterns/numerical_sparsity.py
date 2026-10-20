@@ -12,8 +12,6 @@ the analytical mask, otherwise the solver's mask misses a dependency.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-10-01
 """
 
 from __future__ import annotations

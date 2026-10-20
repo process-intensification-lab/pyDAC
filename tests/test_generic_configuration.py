@@ -69,6 +69,30 @@ def test_every_reference_cycle_step_uses_external_htc_1000():
     assert set(external_htc_by_step.values()) == {1000.0}, external_htc_by_step
 
 
+def test_external_htc_zero_is_an_adiabatic_outer_wall():
+    from tests.test_phase5b_rhs_solver_sparsity import build_model, complete_initial_state
+
+    with pytest.raises(ConfigurationError, match="external_htc_W_m2K"):
+        load_experiment(LEGACY_CASE, settings={"steps.ads.thermal.external_htc_W_m2K": -1.0})
+
+    def jacket_derivatives(external_htc):
+        model = build_model(settings={
+            "grid.nz": 4,
+            "grid.nr": 1,
+            "steps.startup.thermal.jacket_temperature_K": 360.0,
+            "steps.startup.thermal.external_htc_W_m2K": external_htc,
+        })
+        state = complete_initial_state(model)
+        derivative = model.state_layout.unpack(model.pde_system_kpis(0.0, state).copy())
+        return float(derivative["E_jacket"]), derivative["T_wall"]
+
+    energy, wall = jacket_derivatives(1000.0)
+    assert energy > 0.0 and wall.max() > 0.0
+    energy, wall = jacket_derivatives(0.0)
+    assert energy == 0.0
+    assert not wall.any()
+
+
 def test_optimized_desorption_time_updates_both_event_horizons():
     duration_s = 21_600.0
     config = load_experiment(
@@ -395,3 +419,34 @@ def test_a_setting_on_a_resolved_case_recomputes_the_steam_flow(setting):
     resolved = load_experiment(None)
     varied = load_experiment(resolved, settings=setting)
     assert _steam_flow(varied) != pytest.approx(_steam_flow(resolved))
+
+
+def test_nested_and_dotted_settings_and_terminal_objects_give_the_same_case():
+    from pydac.config.settings import resolve_settings
+
+    dotted = load_experiment(LEGACY_CASE, settings=["cycle.w_des.thermal.jacket_temperature_K=400"])
+    jacket = {"thermal": {"jacket_temperature_K": 400}}
+    for nested in (
+        {"cycle": {"w_des": jacket}},
+        {"cycle": {"steps": {"w_des": jacket}}},
+        {"steps": {"w_des": jacket}},
+        {"simulation": {"cycle": {"w_des": jacket}}},
+        {"simulation": {"cycle": {"steps": {"w_des": jacket}}}},
+    ):
+        assert load_experiment(LEGACY_CASE, settings=nested) == dotted, nested
+
+    # A terminal object merges like the same block in Python; an opaque block is whole.
+    assert resolve_settings(['sorbent={"density_kg_m3": 800}']) == {"sorbent.density_kg_m3": 800}
+    assert load_experiment(LEGACY_CASE, settings=['sorbent={"density_kg_m3": 800}']) == load_experiment(
+        LEGACY_CASE, settings={"sorbent": {"density_kg_m3": 800}})
+    assert resolve_settings(['bed.design={"eps_b": 0.4}']) == {"bed.design": {"eps_b": 0.4}}
+    with pytest.raises(ConfigurationError, match="supplied twice"):
+        load_experiment(LEGACY_CASE, settings=['sorbent={"density_kg_m3": 800}', "sorbent.density_kg_m3=700"])
+    # An empty non-opaque block sets nothing, so it is refused instead of passing unchecked;
+    # an empty opaque block is a whole (empty) replacement.
+    for empty in ("grid={}", "grid.nzz={}", "steps.mystep={}"):
+        with pytest.raises(ConfigurationError, match="empty block"):
+            load_experiment(LEGACY_CASE, settings=[empty])
+    with pytest.raises(ConfigurationError, match="empty block"):
+        load_experiment(LEGACY_CASE, settings={"grid": {}})
+    assert resolve_settings(["sorbent.fixed_adsorbates={}"]) == {"sorbent.fixed_adsorbates": {}}

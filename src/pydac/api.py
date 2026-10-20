@@ -31,6 +31,7 @@ from typing import Any
 
 from pydac.config.errors import ConfigurationError, RunRefused
 from pydac.config.schema import ExperimentConfig
+from pydac.utils.paths import display_path
 
 STEPS, CSS, NSGA2 = "steps", "css", "nsga2"
 
@@ -266,7 +267,7 @@ def _claim(folder, *, overwrite: bool) -> None:
         shutil.rmtree(path)
     else:
         path.unlink()
-    print(f"Overwrite: deleted {_absolute(path)}")
+    print(f"Overwrite: deleted {display_path(path)}")
 
 
 def _absolute(folder) -> Path:
@@ -274,7 +275,7 @@ def _absolute(folder) -> Path:
 
 
 def _announce(label: str, folder) -> None:
-    print(f"{label}: {_absolute(folder)}", flush=True)
+    print(f"{label}: {display_path(folder)}", flush=True)
 
 
 def _spatial(case: ExperimentConfig) -> str:

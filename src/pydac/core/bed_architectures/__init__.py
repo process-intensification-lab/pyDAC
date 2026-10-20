@@ -25,6 +25,7 @@ from pydac.core.bed_architectures.base import (
     FLOW_MODELS,
     WALL_HTC_MODELS,
     BedArchitecture,
+    ClosureInputs,
     ColumnGeometry,
     DispersionModel,
     FlowProperties,
@@ -34,6 +35,7 @@ from pydac.core.bed_architectures.base import (
     PackedBedDesign,
     ParticleProperties,
     PressureDropLaw,
+    RegisteredDesign,
     ResolvedArchitecture,
     ResolvedStructure,
     ResolvedTransport,
@@ -48,6 +50,11 @@ from pydac.core.bed_architectures.base import (
     validate_spatial_mode,
     validate_stagnant_conductivity_model,
     validate_wall_htc_model,
+)
+from pydac.core.bed_architectures.registry import (
+    BedArchitectureEntry,
+    registered_bed_architecture,
+    registered_bed_architecture_names,
 )
 from pydac.core.bed_architectures.channeling import (
     CHANNELING_GENERATOR_REVISION,
@@ -113,14 +120,25 @@ ARCHITECTURE_REGISTRY: Mapping[str, ArchitectureSpec] = MappingProxyType(
 
 
 def registered_architectures() -> tuple[str, ...]:
-    """Return registered architecture names in deterministic order."""
-    return tuple(sorted(ARCHITECTURE_REGISTRY))
+    """Return the built-in and session-registered names in deterministic order."""
+    return tuple(sorted({*ARCHITECTURE_REGISTRY, *registered_bed_architecture_names()}))
 
 
 def get_architecture_spec(name: str) -> ArchitectureSpec:
-    """Return detached metadata for a registered architecture."""
+    """Return detached metadata for a built-in or session-registered architecture.
+
+    A registered architecture is opaque here: its design type is reported as
+    ``"registered"`` and no provider code runs to describe it.
+    """
     name = validate_architecture_name(name)
-    return ARCHITECTURE_REGISTRY[name]
+    if name in ARCHITECTURE_REGISTRY:
+        return ARCHITECTURE_REGISTRY[name]
+    provider = registered_bed_architecture(name)
+    return ArchitectureSpec(
+        name=name,
+        design_type="registered",
+        spatial_modes=provider.spatial_modes,
+    )
 
 
 __all__ = [
@@ -140,6 +158,8 @@ __all__ = [
     "WALL_HTC_MODELS",
     "ArchitectureSpec",
     "BedArchitecture",
+    "BedArchitectureEntry",
+    "ClosureInputs",
     "ChannelingOptions",
     "ChannelingStructure",
     "ColumnGeometry",
@@ -155,6 +175,7 @@ __all__ = [
     "PackedBedDesign",
     "ParticleProperties",
     "PressureDropLaw",
+    "RegisteredDesign",
     "ResolvedArchitecture",
     "ResolvedStructure",
     "ResolvedTransport",
@@ -173,6 +194,8 @@ __all__ = [
     "dixon_overall_coefficient",
     "get_architecture_spec",
     "registered_architectures",
+    "registered_bed_architecture",
+    "registered_bed_architecture_names",
     "packed_bed_ring_inlet_flux_weights",
     "packed_bed_ring_structure_factors",
     "radial_effective_conductivity",

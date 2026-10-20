@@ -10,6 +10,7 @@ from pydac.config.loader import load_experiment
 from pydac.config.schema import ExperimentConfig
 
 from pydac.inputs.case_io import case_fingerprint, export_case, load_case
+from pydac.utils.paths import display_path
 
 
 def resolve_terminal_experiment(args: Any, *, settings: Mapping[str, Any] | None = None):
@@ -79,7 +80,7 @@ def export_case_if_requested(args: Any, config: ExperimentConfig):
 
     # Export the already-resolved development document as a complete frozen case.
     output = export_case(config, target, overwrite=getattr(args, "overwrite_case", False))
-    print(f"Exported frozen case: {output}")
+    print(f"Exported frozen case: {display_path(output)}")
     print(f"Case fingerprint: {case_fingerprint(config)}")
     return output
 

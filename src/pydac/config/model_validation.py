@@ -53,6 +53,7 @@ def validate_model_configuration(config: ExperimentConfig) -> None:
     _validate_sorbent_declarations(config)
     _validate_initial_solid_loadings(config)
     _validate_flow_model_grid(config)
+    _validate_registered_architecture(config)
     _validate_wall_override_grid(config)
 
 
@@ -147,6 +148,30 @@ def _require_json_numbers(sorbent) -> None:
             raise ValueError(
                 f"simulation.sorbent.{path} is outside the floating-point range."
             ) from None
+
+
+def _validate_registered_architecture(config: ExperimentConfig) -> None:
+    """Refuse a registered architecture on a grid it does not declare, or with a wall override.
+
+    The wall heat-transfer overrides replace the packed-bed Dixon/h_w coefficients;
+    a registered architecture resolves its own bed-to-wall coefficient, which an
+    override would silently remove. The model build refuses both cases too.
+    """
+    from pydac.config.errors import ConfigurationError
+    from pydac.core.bed_architectures import ARCHITECTURE_NAMES, validate_spatial_mode
+
+    architecture = config.simulation.bed["architecture"]
+    if architecture in ARCHITECTURE_NAMES:
+        return
+    nr = int(config.simulation.grid.nr)
+    validate_spatial_mode("1d" if nr == 1 else "2d", architecture=architecture)
+    wall = config.simulation.wall
+    for field in ("overall_htc_override_W_m2K", "bed_wall_htc_override_W_m2K"):
+        if getattr(wall, field) is not None:
+            raise ConfigurationError(
+                f"`wall.{field}` applies only to the packed bed; bed architecture "
+                f"{architecture!r} resolves its own bed-to-wall coefficient. Set it to null."
+            )
 
 
 def _validate_wall_override_grid(config: ExperimentConfig) -> None:

@@ -951,13 +951,14 @@
             "external_htc_W_m2K": {
               "anyOf": [
                 {
-                  "exclusiveMinimum": 0,
+                  "minimum": 0,
                   "type": "number"
                 },
                 {
                   "type": "null"
                 }
-              ]
+              ],
+              "description": "Heat-transfer coefficient [W/m2K] between the outer wall and the jacket; 0 is an adiabatic outer wall, null inherits the default."
             },
             "feed_temperature_K": {
               "anyOf": [
@@ -999,7 +1000,7 @@
       "type": "object"
     }
   },
-  "$id": "https://raw.githubusercontent.com/process-intensification-lab/pyDAC/v3.0.1/src/pydac/config/json_schema/experiment.schema.json",
+  "$id": "https://raw.githubusercontent.com/process-intensification-lab/pyDAC/v3.1.0/src/pydac/config/json_schema/experiment.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Public pyDAC input. Fields are optional in development presets; frozen-case completeness is enforced by inputs.case_io.",

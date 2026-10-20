@@ -6,8 +6,6 @@ flash calculations used for condenser and phase-equilibrium post-processing.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
 
 import numpy as np

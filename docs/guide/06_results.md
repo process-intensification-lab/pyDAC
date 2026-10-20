@@ -30,18 +30,22 @@ from). Case and preset exports are written to the path you give them; the tutori
 always do, for example the matplotlib font cache in your home folder.
 
 The output root is part of the case, so changing it changes the fingerprint and the folder
-name ([Cases and settings](03_cases.md#fingerprint-and-run-folder)). The folder names are:
+name ([Cases and settings](03_cases.md#fingerprint-and-run-folder)). To keep the results on
+another disk without changing the case, make `simulation_results` a link to a folder there (a
+symbolic link, or a junction on Windows); Git ignores it either way. The folder names are:
 
 | Run | Folder |
 |---|---|
-| step run | `OUTPUT_ROOT/step_mode/[TAG_]packed_bed_HASH/` |
-| CSS run | `OUTPUT_ROOT/cyclic_mode/[TAG_]packed_bed_HASH/` |
-| campaign | `OUTPUT_ROOT/nsga2/[TAG_]GRID_packed_bed_HASH/` |
+| step run | `OUTPUT_ROOT/step_mode/[TAG_]ARCHITECTURE_HASH/` |
+| CSS run | `OUTPUT_ROOT/cyclic_mode/[TAG_]ARCHITECTURE_HASH/` |
+| campaign | `OUTPUT_ROOT/nsga2/[TAG_]GRID_ARCHITECTURE_HASH/` |
 
 `HASH` is the first eight characters of the case fingerprint (for a campaign, of the whole
 campaign definition, see [Optimization campaigns](05_optimization.md#the-campaign-folder)),
-`TAG_` is `execution.extra_tag` when you set one, and `GRID` is the grid, for example
-`1D_25z`. Inside a step or CSS run folder, everything sits in the results folder `1D_mode/`
+`TAG_` is `execution.extra_tag` when you set one, `ARCHITECTURE` is
+`simulation.bed.architecture` (`packed_bed` unless you
+[registered your own](08_extending.md#a-bed-architecture)), and `GRID` is the grid, for
+example `1D_25z`. Inside a step or CSS run folder, everything sits in the results folder `1D_mode/`
 (`grid.nr = 1`) or `2D_mode/` (`grid.nr > 1`). `RunResult.folder` is the run folder and
 `RunResult.results_folder` the results folder.
 

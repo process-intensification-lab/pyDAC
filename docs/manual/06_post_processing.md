@@ -22,7 +22,7 @@ the meaning of a reported KPI. To read results from a run, see the user guide
 page [Results](../guide/06_results.md); to regenerate the report of a saved CSS
 run, [Report a saved CSS run](../guide/04_running.md#report-a-saved-css-run). The
 folders a step run writes are drawn in
-[00 — Framework Map §7](00_framework_map.md#7-artifacts-on-disk).
+[00 — Framework map §7](00_framework_map.md#7-artifacts-on-disk).
 
 Main source files, under `src/pydac/`:
 
@@ -42,7 +42,7 @@ Main source files, under `src/pydac/`:
 - [`post_processing/profiles/cyclic_plotting.py`](../../src/pydac/post_processing/profiles/cyclic_plotting.py)
 - [`utils/postprocessing/`](../../src/pydac/utils/postprocessing/)
 - [`core/column_model.py`](../../src/pydac/core/column_model.py) for the
-  integrated KPI states solved together with the PDEs
+  integrated KPI states solved together with the partial differential equations (PDEs)
 
 `core/column_model.py` and everything under `post_processing/` define what pyDAC
 computes and reports; changes to them need maintainer review
@@ -64,10 +64,10 @@ lockfile or a claim of bitwise portability across machines.
 
 Records use `schema_version`, `record_id`, `created_at`, `activity`, `software`,
 `input`, `execution`, `sources` and `artifacts`. Each activity gets a UUID and
-UTC timestamp. JSON records are atomically saved under `provenance/<UUID>.json`;
+UTC timestamp. JavaScript Object Notation (JSON) records are atomically saved under `provenance/<UUID>.json`;
 an existing identity cannot be replaced with different content. Solve records
 are also embedded as `solve_provenance` in `sol.pkl` and in `terminal.pkl`, the
-compact end state an NSGA-II candidate keeps instead of `sol.pkl`.
+compact end state a non-dominated sorting genetic algorithm II (NSGA-II) candidate keeps instead of `sol.pkl`.
 An activity record establishes origin, not successful completion: consult the
 existing solver outcome or optimization summary for success and termination.
 `software.solver_environment` records the boolean values of `PYDAC_RHS_CSR_OPERATORS` and
@@ -186,7 +186,7 @@ The two layers have different roles:
 | Runtime-report persistence | `post_processing/context/runtime_store.py` | Save and incrementally merge immutable step blocks in `resolved_runtime.json` |
 | Cycle data loading | `post_processing/metrics/cycle_data_loader.py` | Assemble ordered step metrics and the required current-schema context without reading solver results |
 | Pure cycle calculations | `post_processing/kpi/cycle_kpis.py` | Calculate mass, product, and energy KPIs from the validated `CycleData` bundle |
-| KPI reporting | `post_processing/kpi/reporting.py` | Assemble summary values and tables, format text, and persist CSV/JSON/TXT outputs |
+| KPI reporting | `post_processing/kpi/reporting.py` | Assemble summary values and tables, format text, and persist comma-separated values (CSV), JSON and TXT outputs |
 | KPI plotting | `post_processing/kpi/plotting.py` | Plot mass changes, residual gas, and energy breakdowns from `CycleKPIs` |
 | Step profile plotting | `post_processing/profiles/step_plotting.py` | Plot one step's outlet traces and internal profiles, only with `execution.plot_profiles` (§19) |
 | Transient CSS plotting | `post_processing/profiles/cyclic_plotting.py` | Plot saved full-cycle fields and outlet profiles from step solutions |
@@ -210,10 +210,12 @@ cycle_2/
 └── ...
 ```
 
-Schema version 2 uses the columns `Category`, `Parameter ID`, `Step`, `Value`,
+Schema version 3 uses the columns `Category`, `Parameter ID`, `Step`, `Value`,
 and `Unit`. Rows with an empty `Step` contain the static grid, geometry,
 particle, architecture, design, material, resolved structure, and provenance.
-Rows carrying a step key contain the actual resolved heat-transfer,
+Rows carrying a step key contain the actual resolved wall heat-transfer
+models (`bed.models.wall_htc`, the law of the bed-side coefficient h_w, and
+`bed.models.overall_wall_htc`, the lumped 1D coefficient, `none` in 2D),
 pressure-drop and dispersion models; thermal and species-dispersion
 coefficients; dimensional quadratic pressure-law coefficients; and the
 temperature, pressure, velocity, and composition sources used to resolve that
@@ -228,9 +230,12 @@ $$
 `cycle_metadata.json` remains the execution record: step order, termination,
 timing, and CSS probe step. `css_diagnostics.json` is the CSS check of that cycle,
 written by the CSS workflow. Dynamic quantities such as species inventories remain
-per-step metrics. The current post-processing requires a complete schema-v2
-`simulation_context.pkl`; a results folder without one is not adapted or
-reconstructed from current defaults and must be regenerated.
+per-step metrics. The current post-processing requires a complete
+`simulation_context.pkl` of schema 3. A schema-2 context, saved by pyDAC 3.0.x,
+is read in the new rows: `overall_wall_htc` from its `bed.models.heat_transfer`
+row (`none` for a 2D run) and `wall_htc` as `unrecorded`. A results folder
+without a context is not adapted or reconstructed from current defaults and must
+be regenerated.
 
 `resolved_runtime.json` schema version 1 is a separate, readable initialization
 report. Its top-level sections are `provenance`, `state_layout`, `models`,
@@ -274,7 +279,7 @@ all non-closure gas species, loadings for all adsorbates, `c_tot`, `T_bed`,
 `T_wall`, then named mass and energy scalars. `StepPostProcessor`, CSS helpers,
 and cyclic plotting deserialize and verify that saved layout before reading any
 field. A layout-less solution is accepted only when its storage counts are the
-exact historical DAC bundle (7 two-dimensional, 1 one-dimensional, and 5
+exact historical direct air capture (DAC) bundle (7 two-dimensional, 1 one-dimensional, and 5
 scalar fields); every other ambiguous legacy file is rejected.
 
 For the current DAC declaration, this generation reproduces the historical
@@ -409,12 +414,14 @@ A report writes the `y`, `q`, `T_bed`, `T_wall` and pressure figures (§21); the
 `ppm` figure of O2 comes only from `plot_cycle_impurity_outlet()`.
 
 Step figures in `<step>/profiles/outlet_profiles/` (`ProfilesPlotter`, only with
-`execution.plot_profiles`) reduce last-cell values with the same step classes, but
-never read the outlet face for the DAC layout:
+`execution.plot_profiles`) draw the species of the stream that leaves the outlet
+face, as the KPIs and the CSS figures do, and reduce the other last-cell values with
+the same step classes:
 
 | Mixture | Figure | Average |
 |---|---|---|
-| CO2, H2O, O2, N2 (N2 closure; CO2 and H2O adsorbed) | `<step>_outlet_species`, `<step>_outlet_species_O2_N2`, `<step>_outlet_temperature` | $\langle \phi \rangle_{\dot m}$ of last-cell values on the open-flow steps, $\langle \phi \rangle_A$ on the closed-inlet and closed-outlet steps (the 2D title names the average) |
+| CO2, H2O, O2, N2 (N2 closure; CO2 and H2O adsorbed) | `<step>_outlet_species`, `<step>_outlet_species_O2_N2` | native composition (`get_mixed_cups()`, the net-flow mixing cup of the outlet face) at every instant where a net stream leaves; at the other instants (closed outlet, no net outflow, often only t = 0) the last-cell value, $\langle y \rangle_{\dot m}$ on the open-flow steps and $\langle y \rangle_A$ on the closed-inlet and closed-outlet steps |
+| CO2, H2O, O2, N2 (N2 closure; CO2 and H2O adsorbed) | `<step>_outlet_temperature` | $\langle T \rangle_{\dot m}$ of last-cell values on the open-flow steps, $\langle T \rangle_A$ on the closed-inlet and closed-outlet steps (the 2D title names the average) |
 | CO2, H2O, O2, N2 (N2 closure; CO2 and H2O adsorbed) | `<step>_outlet_pressure_velocity` | pressure: $\langle p \rangle_A$, last cell; velocity: $\langle u \rangle_A$ at the outlet face |
 | any other mixture | `<step>_outlet_species` | native composition (`get_mixed_cups()`); while no stream leaves the column (a closed step), the mixed cup is undefined and the dotted trace is the gas in the last cell, $\langle y \rangle_A$ |
 | any other mixture | `<step>_outlet_state` | temperature: the bed in the last cell, $\langle T \rangle_A$, and `T_out` from `get_mixed_cups()` where a stream leaves; pressure: $\langle p \rangle_A$, last cell; velocity: $\langle u \rangle_A$ at the outlet face |
@@ -1968,7 +1975,7 @@ them apart.
 ## 21. File outputs
 
 The step-folder tree itself is drawn once, in
-[00 — Framework Map §7](00_framework_map.md#7-artifacts-on-disk); this section
+[00 — Framework map §7](00_framework_map.md#7-artifacts-on-disk); this section
 documents what each of those files *contains* and what the cycle/CSS layer adds
 on top.
 
@@ -1989,7 +1996,7 @@ step plots (`execution.plot_profiles`, §19).
 In a **step run** the resolved document, fingerprint sidecar, shared
 `simulation_context.pkl`, and `resolved_runtime.json` all sit one level up,
 beside the step folders — see
-[00 — Framework Map §7](00_framework_map.md#7-artifacts-on-disk).
+[00 — Framework map §7](00_framework_map.md#7-artifacts-on-disk).
 
 In a **CSS run** the split is different, and it is the layout the cycle-level
 analysis actually reads: `resolved_config.json` and `case_metadata.json` stay in

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from pydac.utils.paths import display_path
 from pydac.utils.postprocessing.runtime_report import (
     RUNTIME_REPORT_FILENAME,
     merge_runtime_reports,
@@ -42,7 +43,7 @@ class RuntimeReportStore:
             json.dumps(merged, indent=2, sort_keys=False, allow_nan=False) + "\n",
             encoding="utf-8",
         )
-        print(f"Resolved runtime report successfully saved to '{self.path}'")
+        print(f"Resolved runtime report successfully saved to '{display_path(self.path)}'")
         return self.path
 
     def load(self):

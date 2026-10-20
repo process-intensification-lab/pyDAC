@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from pydac.config.errors import ConfigurationError, RunRefused
+from pydac.utils.paths import display_path
 from pydac.utils.version import __version__
 
 # NSGA-II flags that define a campaign: a continuation reads them from the checkpoint.
@@ -361,10 +362,10 @@ def _run_fresh(args, workflow: str) -> int:
         if args.dry_run:
             print_mode_summary(mode)
             if args.overwrite and api.occupied(folder):
-                print(f"Dry run: --overwrite would delete {api._absolute(folder)}")
+                print(f"Dry run: --overwrite would delete {display_path(folder)}")
             elif not args.overwrite:
                 api._refuse_occupied(folder)
-            print(f"Run folder: {api._absolute(folder)}")
+            print(f"Run folder: {display_path(folder)}")
             print("Dry run validation passed: configuration is valid; simulation can start.")
             return None
         api._claim(folder, overwrite=args.overwrite)
@@ -482,7 +483,7 @@ def _nsga2(args) -> int:
         )
         if args.dry_run:
             print_mode_summary(mode)
-            print(f"Campaign folder: {api._absolute(plan.folder)}")
+            print(f"Campaign folder: {display_path(plan.folder)}")
             print("Dry run validation passed: case, bounds and campaign folder are valid; "
                   "no optimization started.")
             return None
@@ -541,9 +542,9 @@ def _get_started(args) -> int:
         dest = get_started(args.folder)
     except ConfigurationError as error:
         raise _Stop(error) from error
-    print(f"Starter kit copied to {dest}")
-    print(f"Next: open {dest / 'examples' / 'README.md'}, or run "
-          f"'pydac steps --config examples/cases/01_first_steps.json' from {dest}.")
+    print(f"Starter kit copied to {display_path(dest)}")
+    print(f"Next: open {display_path(dest / 'examples' / 'README.md')}, or run "
+          f"'pydac steps --config examples/cases/01_first_steps.json' from {display_path(dest)}.")
     return 0
 
 

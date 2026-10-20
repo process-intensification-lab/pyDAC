@@ -58,6 +58,9 @@ pydac = "pydac.cli:main"
 [project.urls]
 Repository = "https://github.com/process-intensification-lab/pyDAC"
 Issues = "https://github.com/process-intensification-lab/pyDAC/issues"
+Changelog = "https://github.com/process-intensification-lab/pyDAC/releases"
+DOI = "https://doi.org/10.5281/zenodo.23319859"
+Preprint = "https://doi.org/10.26434/chemrxiv.15010382/v1"
 
 [dependency-groups]
 test = ["pytest>=8"]
@@ -76,7 +79,7 @@ path = "README.md"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = '\]\((?!https?:|mailto:|#)([^)\s]+)\)'
-replacement = '](https://github.com/process-intensification-lab/pyDAC/blob/v3.0.1/\1)'
+replacement = '](https://github.com/process-intensification-lab/pyDAC/blob/v3.1.0/\1)'
 
 [tool.hatch.build.targets.wheel]
 # The package, plus the starter kit that `pydac get-started FOLDER` copies (pydac/_kit, repository
@@ -99,11 +102,12 @@ exclude = ["**/simulation_results", "**/output_cases", "**/.ipynb_checkpoints", 
 # The sdist is the public repository, as an explicit list: built by mistake from a
 # development checkout it still cannot take private development files.
 only-include = ["src/pydac", "tests", "runners", "docs", "examples", "ci", "README.md", "LICENSE",
-                "CITATION.cff", "CONTRIBUTING.md"]
+                "CHANGELOG.md", "CITATION.cff", "CONTRIBUTING.md"]
 # docs/ is public except the development roadmaps and internal reports.
 exclude = ["docs/development", "docs/reports"]
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]
 markers = [
     "qualification: holds only in the qualification environment (fingerprint baselines); other CI jobs run -m 'not qualification'",
 ]

@@ -7,11 +7,7 @@ simulated TVSA step.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
-
-#YOOOOOOOOOOOOOOOOO
 
 import numpy as np
 import time
@@ -39,6 +35,7 @@ from pydac.utils.postprocessing.saved_solution import (
     SAVED_SOLUTION_SCHEMA_VERSION,
 )
 from pydac.core.outlet_reporting import outlet_face_history
+from pydac.utils.paths import display_path
 from pydac.utils.provenance import new_record, save_record, source_record
 
 
@@ -707,7 +704,7 @@ class Solver:
         with open(save_path, "wb") as f:
             pickle.dump(self.sol, f)
 
-        print(f"Results successfully saved to '{save_path}'")
+        print(f"Results successfully saved to '{display_path(save_path)}'")
 
     def save_terminal_results(self):
         """Persist one compact restart/CSS endpoint without a trajectory artifact."""
@@ -723,7 +720,7 @@ class Solver:
             solver_outcome=compact_solver_outcome(self.sol, step=self.step),
         )
         save_terminal_state(document, save_path)
-        print(f"Compact terminal state successfully saved to '{save_path}'")
+        print(f"Compact terminal state successfully saved to '{display_path(save_path)}'")
         return save_path
 
     def release_results(self):

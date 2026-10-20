@@ -36,11 +36,18 @@ _EXPORTS = {
     "CycleKPIs": "pydac.post_processing.kpi.cycle_kpis",
     "register_equilibrium": "pydac.extensions",
     "register_kinetics": "pydac.extensions",
+    "register_bed_architecture": "pydac.extensions",
     "get_started": "pydac.starter_kit",
     "EquilibriumSystem": "pydac.core.isotherm_models",
     "KineticLaw": "pydac.core.kinetic_models",
     "EquilibriumRegistryEntry": "pydac.utils.model_registry",
     "KineticRegistryEntry": "pydac.utils.model_registry",
+    "BedArchitectureEntry": "pydac.core.bed_architectures.registry",
+    "ClosureInputs": "pydac.core.bed_architectures.base",
+    "ResolvedStructure": "pydac.core.bed_architectures.base",
+    "ResolvedTransport": "pydac.core.bed_architectures.base",
+    "ContextParameter": "pydac.utils.postprocessing.context_schema",
+    "solve_quadratic_drag_velocity": "pydac.core.bed_architectures.packed_bed",
 }
 
 __all__ = ["__version__", *_EXPORTS]

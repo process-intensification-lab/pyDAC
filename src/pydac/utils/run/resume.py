@@ -20,6 +20,7 @@ from pydac.config.errors import ConfigurationError, RunRefused
 from pydac.config.loader import load_experiment
 from pydac.config.schema import ExperimentConfig
 from pydac.config.serialization import experiment_to_document
+from pydac.utils.paths import display_path
 from pydac.utils.provenance import require_same_version
 
 SPATIAL_FOLDERS = ("1D_mode", "2D_mode")
@@ -116,7 +117,8 @@ def saved_run(folder, label="--resume folder") -> tuple[Path, Path, str]:
     saved = _workflows_of(results)
     if len(saved) != 1:
         raise ConfigurationError(
-            f"{label} `{base}` holds runs of several workflows ({', '.join(sorted(saved))})."
+            f"{label} `{display_path(base)}` holds runs of several workflows "
+            f"({', '.join(sorted(saved))})."
         )
     return base, results, saved.pop()
 
@@ -188,7 +190,7 @@ def _step_plan(requested: ExperimentConfig, base: Path, results: Path) -> Resume
         )
     if len(reused) < len(executed):
         # Re-solving some steps next to saved ones would mix two model versions.
-        require_same_version(results, "run", f"The step run in `{base}`",
+        require_same_version(results, "run", f"The step run in `{display_path(base)}`",
                              still_allowed="Reporting it or replaying all its steps "
                                            "(execution.solve=false)")
     what = (
@@ -196,7 +198,8 @@ def _step_plan(requested: ExperimentConfig, base: Path, results: Path) -> Resume
         if len(reused) == len(executed)
         else f"reusing saved {', '.join(reused)}, solving {', '.join(s for s in executed if s not in reused)}"
     )
-    return ResumePlan(requested, str(base), str(results), None, f"Resuming step run {base}: {what}.")
+    return ResumePlan(requested, str(base), str(results), None,
+                      f"Resuming step run {display_path(base)}: {what}.")
 
 
 def resolve_resume(
@@ -212,7 +215,7 @@ def resolve_resume(
     _check_workflow(results, workflow)
     if workflow == "css":
         # Before the saved case is loaded: a later version may not read it.
-        require_same_version(results, "run", f"The CSS run in `{base}`")
+        require_same_version(results, "run", f"The CSS run in `{display_path(base)}`")
 
     from pydac.inputs.case_io import load_case
 
@@ -236,18 +239,18 @@ def resolve_resume(
     completed = _completed_cycles(results)
     if not completed:
         raise ConfigurationError(
-            f"--resume folder `{base}` has no completed cycle; start a fresh run instead."
+            f"--resume folder `{display_path(base)}` has no completed cycle; start a fresh run instead."
         )
     last = completed[-1]
     diagnostics = results / f"cycle_{last}" / "css_diagnostics.json"
     if diagnostics.is_file() and json.loads(diagnostics.read_text(encoding="utf-8")).get("reached"):
         raise RunRefused(
-            f"The CSS run in `{base}` already reached cyclic steady state at cycle {last}."
+            f"The CSS run in `{display_path(base)}` already reached cyclic steady state at cycle {last}."
         )
     max_cycles = requested.execution.max_cycles
     if last >= max_cycles:
         raise ConfigurationError(
-            f"The CSS run in `{base}` stopped at max_cycles={max_cycles} (cycle {last} "
+            f"The CSS run in `{display_path(base)}` stopped at max_cycles={max_cycles} (cycle {last} "
             "completed); raise it to continue, e.g. --set execution.max_cycles="
             f"{last + max(1, max_cycles // 2)}."
         )
@@ -258,7 +261,7 @@ def resolve_resume(
         str(base),
         str(results),
         start,
-        f"Resuming CSS run {base} at cycle {start} (up to max_cycles={max_cycles}).",
+        f"Resuming CSS run {display_path(base)} at cycle {start} (up to max_cycles={max_cycles}).",
     )
 
 

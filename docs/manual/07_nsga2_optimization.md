@@ -1,5 +1,5 @@
 ---
-title: "07 — NSGA-II Optimization"
+title: "07 — NSGA-II optimization"
 toc: true
 toc-depth: 3
 embed-resources: true
@@ -9,13 +9,13 @@ embed-resources: true
 > and for checking the model.** To learn to use pyDAC, do the [tutorials](../../examples/README.md)
 > first, then read the [user guide](../guide/01_installation.md).
 
-This chapter describes how an NSGA-II campaign works inside pyDAC: which modules take part,
+This chapter describes how a non-dominated sorting genetic algorithm II (NSGA-II) campaign works inside pyDAC: which modules take part,
 how a decision vector becomes a case, how candidates are evaluated and recorded, and how a
 campaign is checkpointed and continued. To run a campaign, read the user guide page
 [Optimization campaigns](../guide/05_optimization.md); this chapter does not repeat its
 commands and options.
 
-A campaign uses the same case vocabulary and the same CSS workflow as an ordinary run. It adds
+A campaign uses the same case vocabulary and the same cyclic steady state (CSS) workflow as an ordinary run. It adds
 bounds, population settings, constraints and parallelism; it does not add a second set of
 physical inputs.
 
@@ -23,12 +23,12 @@ physical inputs.
 
 | Layer | Module | Responsibility |
 |---|---|---|
-| Command and API | [`cli.py`](../../src/pydac/cli.py), [`api.py`](../../src/pydac/api.py) | `pydac nsga2` / `pydac.run_nsga2`: validate the whole campaign, name and guard its folder, write the base case; `pydac.resume`: check and continue a saved campaign; `pydac.report`: regenerate its figures and tables from the saved results |
+| Command and application programming interface (API) | [`cli.py`](../../src/pydac/cli.py), [`api.py`](../../src/pydac/api.py) | `pydac nsga2` / `pydac.run_nsga2`: validate the whole campaign, name and guard its folder, write the base case; `pydac.resume`: check and continue a saved campaign; `pydac.report`: regenerate its figures and tables from the saved results |
 | Orchestrator | [`workflows/orchestrator_NSGA2.py`](../../src/pydac/workflows/orchestrator_NSGA2.py) | `NSGA2RunConfig`, `NSGA2Constraints`, `NSGA2TerminationConfig`, candidate evaluation, the pymoo problem, the optimizer loop, resume |
 | Campaign utilities | [`utils/nsga2/`](../../src/pydac/utils/nsga2/) | decision vector (`decisions.py`), candidate records and pruning (`evaluation.py`), checkpoints (`checkpoint.py`), warm starts (`warm_start.py`), logs (`logging.py`), campaign metadata files (`artifacts.py`) |
 | CSS workflow | [`workflows/orchestrator_TVSA_cycle_css.py`](../../src/pydac/workflows/orchestrator_TVSA_cycle_css.py) | runs each candidate until CSS, `execution.max_cycles` or failure; reaching the cap without CSS rejects the candidate only with `execution.require_css=true` |
 | Case engine | [`config/`](../../src/pydac/config/) | resolves each candidate's case; `config/operating.py` owns the operating knobs (§2) |
-| KPI layer | [`post_processing/metrics/`](../../src/pydac/post_processing/metrics/), [`post_processing/kpi/`](../../src/pydac/post_processing/kpi/) | loads the CSS cycle (or, with `require_css=false` and no CSS, the highest-numbered saved cycle) and computes objectives and constraint values |
+| Key performance indicator (KPI) layer | [`post_processing/metrics/`](../../src/pydac/post_processing/metrics/), [`post_processing/kpi/`](../../src/pydac/post_processing/kpi/) | loads the CSS cycle (or, with `require_css=false` and no CSS, the highest-numbered saved cycle) and computes objectives and constraint values |
 | Campaign figures | [`post_processing/optimization/`](../../src/pydac/post_processing/optimization/) | Pareto and distribution figures, `pareto_front.csv` |
 
 `pydac.run_nsga2` checks the campaign before it writes anything: the base case passes the same
@@ -85,7 +85,8 @@ The pymoo problem (`TVSAOptimizationProblem`) minimizes two objectives:
 
 The constraints follow the pymoo convention `g <= 0` is feasible. The first is always active:
 the evaluation must have finished without failure and, when `execution.require_css` is true,
-reached CSS. The others come from `NSGA2Constraints` and are active only when set:
+reached CSS. The others come from `NSGA2Constraints` and are active only when set (all are off
+by default; a campaign with none of them active issues a `UserWarning` when it starts):
 
 | Constraint | `g` |
 |---|---|
@@ -96,7 +97,7 @@ reached CSS. The others come from `NSGA2Constraints` and are active only when se
 
 A failed candidate gets large objective and constraint values, so it is infeasible and never
 reaches the front. How equivalent work, productivity and purity are computed is in
-[06 — Post-Processing](06_post_processing.md).
+[06 — Post-processing](06_post_processing.md).
 
 ## 4. Candidate evaluation and the campaign folder
 
@@ -110,7 +111,7 @@ trajectories and the `resolved_config.json` (`prune_candidate_artifacts`). An or
 candidate therefore keeps no simulation results on disk.
 
 At the end of each generation its candidate records are staged into
-`results/candidate_records/generation_<NNNN>.jsonl`, one JSON record per line
+`results/candidate_records/generation_<NNNN>.jsonl`, one JavaScript Object Notation (JSON) record per line
 (`commit_generation_candidate_records`); they count as committed once the checkpoint state
 below is written. With `delete_generation_folders=True`, the setting `pydac.run_nsga2` uses,
 the callback removes the previous generation folder before writing the new checkpoint state,
@@ -120,7 +121,7 @@ candidate.
 A record holds the decision vector, objectives, constraint values, KPIs, CSS history, solver
 outcomes and a provenance record. The candidate's complete case is in the provenance, at
 `provenance.input.resolved_config`. Saved as a JSON file, it is a frozen case and runs again
-with `pydac css --case`.
+with `pydac css --case PATH`.
 
 The campaign folder holds:
 
@@ -128,17 +129,17 @@ The campaign folder holds:
 |---|---|
 | `resolved_config.json`, `case_metadata.json` | the base case and its fingerprint |
 | `pareto_bounds.csv`, `pareto_flow_transform.json` | the bounds, and how the velocity variables became flows |
-| `generation_log.txt`, `evaluations_log.txt`, `nsga2_log.txt`, `optimization_log.csv` | progress: a table with one row per generation, one line per candidate, the full campaign output, the per-generation numbers as CSV |
+| `generation_log.txt`, `evaluations_log.txt`, `nsga2_log.txt`, `optimization_log.csv` | progress: a table with one row per generation, one line per candidate, the full campaign output, the per-generation numbers as comma-separated values (CSV) |
 | `gen_<NN>/` | the candidates of the newest generation (compact files only) |
 | `results/campaign_identity.json` | the campaign definition the folder belongs to |
 | `results/checkpoint_state.json`, `results/checkpoints/` | the checkpoint (§5) |
 | `results/candidate_records/` | the consolidated candidate records |
 | `results/pareto_front.csv`, `pareto_front.npz`, `last_population.npz`, `last_pareto_front.npz`, `population_and_extras.csv`, `decision_variable_modes.csv` | the final front and population |
 | `results/optimization_summary.json`, `results/provenance/` | the run summary and provenance records |
-| `results/figures/` | Pareto and distribution figures (PDF) |
+| `results/figures/` | Pareto and distribution figures (Portable Document Format, PDF) |
 
 The final and report post-processing write `pareto_front.csv` before drawing any figure, so a
-figure that fails does not lose the front table. `decision_variable_modes.csv` uses a KDE on the
+figure that fails does not lose the front table. `decision_variable_modes.csv` uses a kernel density estimate (KDE) on the
 scaled values when the front has spread; for a single front point, or a value identical at every
 front point, that value is the mode and no KDE is fitted.
 
@@ -154,7 +155,7 @@ generation (`results/checkpoints/generation_<NNNN>_population.npz` and `_pareto.
 `results/checkpoint_state.json`
 ([`utils/nsga2/checkpoint.py`](../../src/pydac/utils/nsga2/checkpoint.py)). The state file
 holds the campaign identity, the completed generations and evaluations, the population size,
-the pymoo version, the random-generator state, the state of the stop rule, and the SHA-256
+the pymoo version, the random-generator state, the state of the stop rule, and the SHA-256 (Secure Hash Algorithm, 256-bit)
 checksums of the checkpoint's population, Pareto front and (when present) consolidated
 candidate records. A generation counts as committed only when its state file
 is written; writes are atomic.

@@ -13,6 +13,7 @@ from pydac.post_processing.kpi.cycle_kpis import (
     EquivalentWorkConditions,
 )
 from pydac.post_processing.metrics.cycle_metrics import STEP_KEY_TO_CYCLE_STEP
+from pydac.utils.paths import display_path
 
 
 O2_PPM_LIMIT = 40.0
@@ -139,7 +140,7 @@ class KPIPlotting:
         if save:
             out_path = self._output_path(stem, fmt)
             fig.savefig(out_path, dpi=300, bbox_inches="tight")
-            print(f"[Saved] {out_path}")
+            print(f"[Saved] {display_path(out_path)}")
         self._finish_figure(fig, show=show)
         return None if out_path is None else str(out_path)
 
@@ -290,7 +291,7 @@ class KPIPlotting:
             )
             out_path = self._output_path(stem, fmt)
             fig.savefig(out_path, dpi=300, bbox_inches="tight")
-            print(f"[Saved] {out_path}")
+            print(f"[Saved] {display_path(out_path)}")
 
         self._finish_figure(fig, show=show)
         return None if out_path is None else str(out_path)
@@ -425,7 +426,7 @@ class KPIPlotting:
             )
             out_path = self._output_path(stem, fmt)
             fig.savefig(out_path, dpi=300, bbox_inches="tight")
-            print(f"[Saved] {out_path}")
+            print(f"[Saved] {display_path(out_path)}")
 
         self._finish_figure(fig, show=show)
         return None if out_path is None else str(out_path)
@@ -554,7 +555,7 @@ class KPIPlotting:
         if save:
             out_path = self._output_path(stem, fmt)
             fig.savefig(out_path, dpi=300, bbox_inches="tight")
-            print(f"[Saved] {out_path}")
+            print(f"[Saved] {display_path(out_path)}")
 
         self._finish_figure(fig, show=show)
         return None if out_path is None else str(out_path)

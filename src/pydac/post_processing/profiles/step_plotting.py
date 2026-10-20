@@ -6,8 +6,6 @@ outlet histories using the data extracted by `StepPostProcessor`.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
 
 import os
@@ -15,6 +13,7 @@ from matplotlib import pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
 from pydac.post_processing.profiles.cyclic_plotting import CyclicSteadyStateProfiles
+from pydac.utils.paths import display_path
 from pydac.utils.plot_helpers import SNAPSHOT_TIME_OVERRIDES, T_END_OVERRIDES
 import seaborn as sns
 
@@ -298,7 +297,7 @@ class ProfilesPlotter:
                     f"{self.step}_{species}_alltimes.{fmt}",
                 )
                 fig.savefig(path, dpi=300, bbox_inches="tight")
-                print(f"[Saved] {path}")
+                print(f"[Saved] {display_path(path)}")
             if not show:
                 plt.close(fig)
         if show:
@@ -375,7 +374,7 @@ class ProfilesPlotter:
             for figure, filename in figures:
                 path = os.path.join(self.outlet_profiles_folder, filename)
                 figure.savefig(path, dpi=300, bbox_inches="tight")
-                print(f"[Saved] {path}")
+                print(f"[Saved] {display_path(path)}")
         if show:
             plt.show()
         else:
@@ -956,7 +955,7 @@ class ProfilesPlotter:
                 out_name = f"{self.step}_{meta['file_tag']}_2D_snapshots.{fmt}"
                 out_path = os.path.join(base_folder, out_name)
                 fig.savefig(out_path, dpi=300, bbox_inches="tight")
-                print(f"[Saved] {out_path}")
+                print(f"[Saved] {display_path(out_path)}")
 
             if show:
                 plt.show()
@@ -1083,7 +1082,7 @@ class ProfilesPlotter:
             out_name = f"{self.step}_Tbed_Twall_snapshot.{fmt}"
             out_path = os.path.join(base_folder, out_name)
             fig.savefig(out_path, dpi=300, bbox_inches="tight")
-            print(f"[Saved] {out_path}")
+            print(f"[Saved] {display_path(out_path)}")
 
         if show:
             plt.show()
@@ -1241,7 +1240,7 @@ class ProfilesPlotter:
             out_name = f"{self.step}_Tbed_Twall_2D_snapshots.{fmt}"
             out_path = os.path.join(base_folder, out_name)
             fig.savefig(out_path, dpi=300, bbox_inches="tight")
-            print(f"[Saved] {out_path}")
+            print(f"[Saved] {display_path(out_path)}")
 
         if show:
             plt.show()
@@ -1263,12 +1262,14 @@ class ProfilesPlotter:
         """
         Plot the temporal evolution of OUTLET (z = L) profiles.
 
-        In 2D mode, species and temperature are mixed-cup
+        Species are the stream that leaves the outlet face (net-flow mixing
+        cup, ``get_mixed_cups()``), the value the KPIs and the CSS figures use,
+        at every instant where a net stream leaves; at the other instants
+        (closed outlet, no net outflow, often only t = 0) they are the
+        last-cell value. Temperature is the last-cell value, mixed-cup
         (mass-flux weighted) on steps that carry an advected stream and
         area-weighted on closed-inlet and closed-outlet steps (the step classes
-        of the CSS figures), while pressure and axial velocity are radially
-        averaged. In 1D mode, the single stored radial value is plotted
-        directly for every outlet quantity.
+        of the CSS figures); pressure and axial velocity are radially averaged.
 
         Layout:
         - 1x2: gas-phase CO2 and H2O molar fractions
@@ -1354,6 +1355,21 @@ class ProfilesPlotter:
                 y_N2_z=y_N2_z,
                 u_ax_z=u_ax_z,
             )
+            # The stream leaving the outlet face (net-flow mixing cup), as the KPIs
+            # and the CSS figures read it; the last cell centre stays where no net
+            # stream leaves (closed outlet, inflow).
+            cups = pp.get_mixed_cups()
+            stream = np.isfinite(cups[f"y_{pp.gas_species[0]}"])
+            species_label = average_label
+            if stream.any():
+                y_CO2_out, y_H2O_out, y_O2_out, y_N2_out = (
+                    np.where(stream, cups[f"y_{name}"], cell) if f"y_{name}" in cups else cell
+                    for name, cell in (
+                        ("CO2", y_CO2_out), ("H2O", y_H2O_out),
+                        ("O2", y_O2_out), ("N2", y_N2_out),
+                    )
+                )
+                species_label = "net outlet flow"
 
             fig1, axs1 = plt.subplots(1, 2, figsize=(14, 5))
             axs1[0].plot(t, y_CO2_out, label=r'Model CO$_2$', linewidth=line_width, color='tab:blue')
@@ -1365,8 +1381,8 @@ class ProfilesPlotter:
                 axs1[0].set_title(r'Outlet Gas-phase CO$_2$')
                 axs1[1].set_title(r'Outlet Gas-phase H$_2$O')
             else:
-                axs1[0].set_title(r'Outlet Gas-phase CO$_2$ (' + average_label + ')')
-                axs1[1].set_title(r'Outlet Gas-phase H$_2$O (' + average_label + ')')
+                axs1[0].set_title(r'Outlet Gas-phase CO$_2$ (' + species_label + ')')
+                axs1[1].set_title(r'Outlet Gas-phase H$_2$O (' + species_label + ')')
             axs1[0].set_ylabel('Molar fraction [-]')
             axs1[0].set_xlabel(t_unit)
             axs1[1].set_xlabel(t_unit)
@@ -1390,8 +1406,8 @@ class ProfilesPlotter:
                 axs1b[0].set_title(r'Outlet Gas-phase O$_2$')
                 axs1b[1].set_title(r'Outlet Gas-phase N$_2$')
             else:
-                axs1b[0].set_title(r'Outlet Gas-phase O$_2$ (' + average_label + ')')
-                axs1b[1].set_title(r'Outlet Gas-phase N$_2$ (' + average_label + ')')
+                axs1b[0].set_title(r'Outlet Gas-phase O$_2$ (' + species_label + ')')
+                axs1b[1].set_title(r'Outlet Gas-phase N$_2$ (' + species_label + ')')
             axs1b[0].set_ylabel('Molar fraction [-]')
             axs1b[0].set_xlabel(t_unit)
             axs1b[1].set_xlabel(t_unit)
@@ -1481,7 +1497,7 @@ class ProfilesPlotter:
             for fig, fname in fig_list:
                 out_path = os.path.join(self.outlet_profiles_folder, fname)
                 fig.savefig(out_path, dpi=300, bbox_inches="tight")
-                print(f"[Saved] {out_path}")
+                print(f"[Saved] {display_path(out_path)}")
 
         if show:
             plt.show()

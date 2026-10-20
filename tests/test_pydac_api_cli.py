@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +17,7 @@ from pydac import api
 from pydac.cli import main
 from pydac.config.errors import ConfigurationError, RunRefused
 from pydac.inputs.case_io import case_fingerprint
+from pydac.utils.paths import display_path
 from pydac.utils.run.resume import resolve_resume
 
 REPO = Path(__file__).resolve().parents[1]
@@ -43,7 +45,8 @@ def _set(settings):
 
 
 def _printed_folders(out: str, label="Run folder") -> set[Path]:
-    return {Path(line.split(": ", 1)[1]) for line in out.splitlines() if line.startswith(label + ": ")}
+    return {Path(line.split(": ", 1)[1]).absolute()
+            for line in out.splitlines() if line.startswith(label + ": ")}
 
 
 def _hashes(folder: Path) -> dict[str, str]:
@@ -69,6 +72,14 @@ def test_public_names_and_light_import():
     assert out.stdout.strip() == "[]"
 
 
+def test_readme_lists_every_public_name():
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
+    start = readme.index("supported API is the set of names in `pydac.__all__`:")
+    sentence = readme[start:readme.index("\n\n", start)]
+    listed = set(re.findall(r"`(\w+)`", sentence)) - {"__all__"}
+    assert listed == set(pydac.__all__)
+
+
 def test_version_command():
     out = subprocess.run([sys.executable, "-m", "pydac.cli", "--version"],
                          capture_output=True, text=True)
@@ -88,7 +99,7 @@ def test_run_functions_take_only_a_loaded_case(tmp_path):
     case = pydac.load_case(CASE, settings=["grid.nz=6"])
     assert case.simulation.grid.nz == 6
     assert pydac.load_case(CASE, settings={"grid": {"nz": 6}}) == case
-    target = tmp_path / "case.json"
+    target = tmp_path / "sub" / "case.json"
     assert pydac.export_case(case, target) == target
     with pytest.raises(ConfigurationError, match="Refusing to overwrite"):
         pydac.export_case(case, target)
@@ -143,6 +154,35 @@ def test_same_step_case_from_cli_and_python(tmp_path, monkeypatch, capsys):
     assert _printed_folders(capsys.readouterr().out) == {run}
 
 
+def test_printed_paths_are_relative_inside_the_working_folder(tmp_path, monkeypatch, capsys):
+    """Messages show a path under the working folder relative to it, anything else absolute;
+    the run itself still writes to (and returns) the absolute folder."""
+    monkeypatch.chdir(tmp_path)
+    inside = tmp_path / "simulation_results" / "steps"
+    assert display_path(inside) == os.path.join("simulation_results", "steps")
+    assert display_path("simulation_results/steps") == os.path.join("simulation_results", "steps")
+    assert display_path(tmp_path) == "."
+    outside = tmp_path.parent / "elsewhere"
+    assert display_path(outside) == str(outside)
+
+    assert main(["steps", "--config", CASE, "--dry-run"]) == 0
+    folder = Path(api.run_folder(pydac.load_case(CASE), "steps"))
+    assert f"Run folder: {folder}\n" in capsys.readouterr().out
+    assert not folder.is_absolute() and folder.parts[0] == "simulation_results"
+
+
+def test_printed_path_survives_a_deleted_working_folder(tmp_path, monkeypatch):
+    """A message after a finished solve must not fail because the working folder is gone."""
+
+    def gone():
+        raise FileNotFoundError("working folder deleted")
+
+    monkeypatch.setattr(os, "getcwd", gone)
+    absolute = tmp_path / "simulation_results" / "steps"
+    assert display_path(absolute) == str(absolute)
+    assert display_path("simulation_results/steps") == "simulation_results/steps"
+
+
 def test_occupied_folder_refusal_and_overwrite_scope(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     case = pydac.load_case(CASE)
@@ -158,7 +198,7 @@ def test_occupied_folder_refusal_and_overwrite_scope(tmp_path, monkeypatch, caps
     assert captured.err.startswith("Refused: ") and "--overwrite" in captured.err
     assert main(["steps", "--config", CASE, "--dry-run"]) == 2
     assert main(["steps", "--config", CASE, "--dry-run", "--overwrite"]) == 0
-    assert f"--overwrite would delete {run}" in capsys.readouterr().out
+    assert f"--overwrite would delete {display_path(run)}" in capsys.readouterr().out
     assert (run / "1D_mode" / "old.txt").is_file()
     assert main(["steps", "--config", CASE, "--overwrite", "--export-case", "x.json"]) == 2
     assert not (tmp_path / "x.json").exists()
@@ -544,7 +584,7 @@ def test_runner_constants_reach_pydac_explicitly(tmp_path, monkeypatch, capsys):
     assert capsys.readouterr().err.startswith("Refused: ")
     monkeypatch.setattr(runner, "OVERWRITE", True)
     assert runner.main([]) == 0
-    assert f"Overwrite: deleted {run}" in capsys.readouterr().out
+    assert f"Overwrite: deleted {display_path(run)}" in capsys.readouterr().out
 
     # CASE_PATH runs a frozen case exactly; it cannot be combined with --case, and
     # non-empty DEVELOPMENT_SETTINGS are refused like --set.

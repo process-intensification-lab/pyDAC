@@ -31,21 +31,21 @@ contributors and for checking the model.
 
 | Document | Contents |
 |----------|----------|
-| [00 — Framework Map](manual/00_framework_map.md) | **Start here for the code.** Layer map, dependency rules, entry points, the three pipelines, typed configuration boundary, artifact flow, ownership contract, and a "where do I change X" cookbook |
+| [00 — Framework map](manual/00_framework_map.md) | **Start here for the code.** Layer map, dependency rules, entry points, the three pipelines, typed configuration boundary, artifact flow, ownership contract, and a "where do I change X" cookbook |
 | [01 — Inputs](manual/01_inputs.md) | **Start here for anything about inputs.** The two input mechanisms, resolution order, the document contract, frozen cases, ownership map, and a "where do I change X" cookbook |
-| [02 — pyDAC Core](manual/02_pydac_core.md) | What happens when you press Run, stage by stage; factory, PDE model, solver internals, cycle orchestration |
-| [03 — pymrm Discretization](manual/03_pymrm_discretization.md) | Sparse FVM operators, boundary conditions, caching |
-| [04 — Governing Equations](manual/04_governing_equations.md) | The equation→code map: where balances and closures are assembled (reference state, bed-wall coupling, architectures, isotherms and kinetics, positivity). **Not the derivation** — that is the manual |
-| [05 — Cycle Steps](manual/05_cycle_steps.md) | Per-step physics, BCs, event-based and time-based stopping rules |
-| [06 — Post-Processing](manual/06_post_processing.md) | KPIs, plotting, CSS diagnostics, result-file structure |
-| [07 — NSGA-II Optimization](manual/07_nsga2_optimization.md) | Campaign setup, decision vector, objectives and constraints, sweeps, output layout |
+| [02 — pyDAC core](manual/02_pydac_core.md) | What happens when you press Run, stage by stage; factory, PDE model, solver internals, cycle orchestration |
+| [03 — pymrm discretization](manual/03_pymrm_discretization.md) | Sparse FVM operators, boundary conditions, caching |
+| [04 — Governing equations](manual/04_governing_equations.md) | The equation→code map: where balances and closures are assembled (reference state, bed-wall coupling, architectures, isotherms and kinetics, positivity). **Not the derivation** — that is the manual |
+| [05 — Cycle steps](manual/05_cycle_steps.md) | Per-step physics, BCs, event-based and time-based stopping rules |
+| [06 — Post-processing](manual/06_post_processing.md) | KPIs, plotting, CSS diagnostics, result-file structure |
+| [07 — NSGA-II optimization](manual/07_nsga2_optimization.md) | Campaign setup, decision vector, objectives and constraints, sweeps, output layout |
 
 Every subject has exactly one owner chapter above; the others link to it rather
 than restating it.
 
 ## Notes
 
-- New to the codebase? Read [00 — Framework Map](manual/00_framework_map.md) first;
+- New to the codebase? Read [00 — Framework map](manual/00_framework_map.md) first;
   it explains the layers, the entry points, and which document to open next.
 - The markdown files under `guide/` and `manual/` are the maintained sources.
 - Operational case scripts live in [`../runners`](../runners).
@@ -53,5 +53,5 @@ than restating it.
 - User-editable process defaults live in [`src/pydac/inputs/defaults/`](../src/pydac/inputs/defaults/); complete replayable cases live in [`../inputs/cases/`](../inputs/cases/).
 - [`src/pydac/config/`](../src/pydac/config/) is the validation/resolution engine and typed runtime contract, not the routine value-editing surface.
 - Step execution flags, `termination_mode`, operating conditions, event metrics, and event thresholds are documented in [01 — Inputs](manual/01_inputs.md).
-- Every step uses the direct sparse linear solver; how schema-v2 cases with a per-step `linear_solver` are upgraded is [01 — Inputs §4.5](manual/01_inputs.md#45-the-linear-solver), the internals are [02 — pyDAC Core §10](manual/02_pydac_core.md#10-solver).
-- An event threshold is also a cost decision for the *next* step: see [05 — Cycle Steps §3.3](manual/05_cycle_steps.md#33-event-stop-rules) for the state passed from one step to the next.
+- Every step uses the direct sparse linear solver; how schema-v2 cases with a per-step `linear_solver` are upgraded is [01 — Inputs §4.5](manual/01_inputs.md#45-the-linear-solver), the internals are [02 — pyDAC core §10](manual/02_pydac_core.md#10-solver).
+- An event threshold is also a cost decision for the *next* step: see [05 — Cycle steps §3.3](manual/05_cycle_steps.md#33-event-stop-rules) for the state passed from one step to the next.

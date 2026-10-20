@@ -25,8 +25,6 @@ inputs expected by the shared runner:
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-20
 """
 
 from __future__ import annotations
@@ -41,6 +39,7 @@ import json
 import multiprocessing as mp
 import time
 import traceback
+import warnings
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Mapping, Sequence
@@ -112,6 +111,7 @@ from pydac.utils.run import (
     is_steam_assisted_desorption_step,
 )
 from pydac.utils.campaign import atomic_write_json
+from pydac.utils.paths import display_path
 from pydac.utils.solver.outcome import FinalSolverFailure
 from pydac.utils.solver.composition_domain import CompositionDomainGuard
 from pydac.utils.solver.persistence import MOO_COMPACT, RUN_FULL
@@ -186,6 +186,27 @@ class NSGA2Constraints:
             g.append(float(result["eq_work"] - self.eq_work_max))
         return g
 
+
+def warn_if_unconstrained(constraints: NSGA2Constraints, *, is_steam_assisted: bool) -> bool:
+    """Warn when no product constraint is active; return True if it warned.
+
+    Every constraint is off by default, so a campaign that sets none optimizes
+    work and productivity alone and may return products of any purity.
+    `steam_condensation` counts only on a steam-assisted cycle.
+    """
+    if constraints.count(is_steam_assisted=is_steam_assisted):
+        return False
+    warnings.warn(
+        "NSGA-II runs without any product constraint: the Pareto front may hold "
+        "cycles with any CO2 purity and O2 content. Set them on NSGA2Constraints "
+        "(purity_min, oxygen_ppm_max, steam_condensation, eq_work_max) or with "
+        "`pydac nsga2 --purity-min/--oxygen-ppm-max/--steam-condensation/--eq-work-max`.",
+        UserWarning,
+        stacklevel=2,
+    )
+    return True
+
+
 @dataclass(frozen=True)
 class NSGA2TerminationConfig:
     """Termination controls built from pymoo's native termination classes.
@@ -246,7 +267,8 @@ class NSGA2RunConfig:
         criteria, and outputs. Every candidate is this document plus its own
         operating knobs, so `tau_ar`, `bed_volume`, `bed_config`,
         `cycle_steps`, and `require_css` are read from it rather than being
-        stated twice. `None` uses the reference profile.
+        stated twice. `None` uses the reference profile. Its cycle must
+        contain `s_des` or `w_des`: the campaign optimizes that desorption step.
     constraints : NSGA2Constraints
         Active constraints container. Defaults to no product constraint;
         the evaluation-validity/CSS constraint is always active.
@@ -313,7 +335,14 @@ class NSGA2RunConfig:
         adsorption = {step.name: step.config for step in self.experiment.simulation.cycle.steps}
         self.adsorption_T_feed = adsorption["ads"].thermal.feed_temperature_K
         self.adsorption_RH = adsorption["ads"].composition.relative_humidity
-        self.desorption_step = infer_desorption_step(cycle_steps=self.cycle_steps)
+        self.desorption_step = infer_desorption_step(cycle_steps=self.cycle_steps, default=None)
+        if self.desorption_step is None:
+            # `t_des` (and `v_steam`) would act on no step of the cycle.
+            raise ValueError(
+                "An NSGA-II campaign optimizes the desorption step: "
+                "execution.cycle_steps needs `s_des` or `w_des`; "
+                f"found {self.cycle_steps}."
+            )
         self.is_steam_assisted = is_steam_assisted_desorption_step(self.desorption_step)
         self.var_names = (
             _resolve_var_names(self.is_steam_assisted)
@@ -1211,6 +1240,10 @@ def run_nsga2_optimization(
             print(f"  Decision variables ({len(run_config.var_names)}): {list(run_config.var_names)}")
             print(f"  Objectives:         2  (eq_work ↓, productivity ↑)")
             print(f"  Constraints ({len(active)}):    {active}")
+            warn_if_unconstrained(
+                run_config.constraints,
+                is_steam_assisted=run_config.is_steam_assisted,
+            )
             print(f"  Cycle steps:        {run_config.cycle_steps}")
             print(f"  Desorption mode:    {run_config.desorption_step}")
             print(f"  Bed architecture:   {run_config.bed_config['architecture']}")
@@ -1253,7 +1286,7 @@ def run_nsga2_optimization(
                 )
             elif initial_sampling_summary["mode"] == "continuation":
                 print(f"    Source:           {initial_sampling_summary['source']}")
-                print(f"    File:             {initial_sampling_summary['path']}")
+                print(f"    File:             {display_path(initial_sampling_summary['path'])}")
                 print(f"    Loaded:           {initial_sampling_summary['loaded']} individuals")
                 print(
                     f"    Final sample:     "
@@ -1275,7 +1308,7 @@ def run_nsga2_optimization(
                     else "none"
                 )
                 print(f"    Source:           {initial_sampling_summary['source']}")
-                print(f"    File:             {initial_sampling_summary['path']}")
+                print(f"    File:             {display_path(initial_sampling_summary['path'])}")
                 print(f"    Loaded:           {initial_sampling_summary['loaded']} individuals")
                 print(
                     f"    Reused:           {initial_sampling_summary['reused']} individuals"
@@ -1397,8 +1430,8 @@ def run_nsga2_optimization(
     ) as handle:
         json.dump(run_summary, handle, indent=2)
 
-    print(f"Saved: {pareto_folder}/pareto_front.npz")
-    print(f"Saved: {pareto_folder}/last_population.npz")
+    print(f"Saved: {display_path(Path(pareto_folder) / 'pareto_front.npz')}")
+    print(f"Saved: {display_path(Path(pareto_folder) / 'last_population.npz')}")
     print(
         f"Stop reason: {stop_reason} at generation {final_generation} "
         f"after {final_evaluations} evaluations."
@@ -1421,6 +1454,8 @@ def run_nsga2_optimization(
     return res
 
 
+
+
 def _campaign_from_checkpoint(base_folder: str | os.PathLike):
     """Rebuild a committed campaign's run config and optimizer options."""
     base = Path(base_folder)
@@ -1437,19 +1472,27 @@ def _campaign_from_checkpoint(base_folder: str | os.PathLike):
     state = json.loads(state_path.read_text(encoding="utf-8"))
     definition = state["campaign_identity"]["definition"]
     optimizer = definition["optimizer"]
-    run_config = NSGA2RunConfig(
-        base_folder=str(base),
-        bounds={name: tuple(pair) for name, pair in definition["bounds"].items()},
-        decision_variables=list(definition["decision_variables"]),
-        experiment=load_case(definition["experiment"]),
-        constraints=NSGA2Constraints(**definition["constraints"]),
-        sbx_prob=optimizer["sbx_probability"],
-        sbx_eta=optimizer["sbx_eta"],
-        pm_eta=optimizer["polynomial_mutation_eta"],
-        composition_domain_guard=CompositionDomainGuard(
-            **definition["composition_domain_guard"]
-        ),
-    )
+    # A checkpoint this version can no longer accept is a refusal, not a traceback.
+    try:
+        run_config = NSGA2RunConfig(
+            base_folder=str(base),
+            bounds={name: tuple(pair) for name, pair in definition["bounds"].items()},
+            decision_variables=list(definition["decision_variables"]),
+            experiment=load_case(definition["experiment"]),
+            constraints=NSGA2Constraints(**definition["constraints"]),
+            sbx_prob=optimizer["sbx_probability"],
+            sbx_eta=optimizer["sbx_eta"],
+            pm_eta=optimizer["polynomial_mutation_eta"],
+            composition_domain_guard=CompositionDomainGuard(
+                **definition["composition_domain_guard"]
+            ),
+        )
+    except ConfigurationError:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise ConfigurationError(
+            f"The NSGA-II campaign in `{base}` cannot be resumed: {exc}"
+        ) from exc
     options = {
         "pop_size": int(optimizer["population_size"]),
         "n_generations": int(optimizer["total_generations"]),
@@ -1529,4 +1572,3 @@ def run_pareto_postprocessing(pareto_folder: str) -> None:
     pp.plot_pareto_front(save=True)
     pp.plot_scaled_decision_boxplot(save=True)
     pp.plot_scaled_decision_violinplot(save=True)
-    #pp.pandas_postprocess(threshold=5, save=True)

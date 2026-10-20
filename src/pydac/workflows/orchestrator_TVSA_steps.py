@@ -6,8 +6,6 @@ loop and is the main driver for one-off simulations or step-by-step debugging.
 
 Author: Mattia Galanti
 Affiliation: Eindhoven University of Technology
-Email: mattiagalanti1@gmail.com
-Last updated: 2026-04-10
 """
 
 import os

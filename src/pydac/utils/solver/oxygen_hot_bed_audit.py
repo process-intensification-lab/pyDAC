@@ -22,6 +22,8 @@ from typing import Any, Iterable
 
 import numpy as np
 
+from pydac.utils.paths import display_path
+
 
 DEFAULT_TEMPERATURE_LIMIT_C = 90.0
 DEFAULT_OXYGEN_LIMIT_PPM = 0.0
@@ -504,7 +506,7 @@ def run_oxygen_hot_bed_check(
             results_folder / "kpis" / "csv" / "process" / SIMPLE_CHECK_FILENAME,
         )
         print(simple_check_message(safety_report))
-        print(f"Oxygen/hot-bed check CSV: {safety_csv}")
+        print(f"Oxygen/hot-bed check CSV: {display_path(safety_csv)}")
         return safety_csv
     except Exception as exc:
         print(f"WARNING: oxygen/hot-bed check unavailable: {exc}")

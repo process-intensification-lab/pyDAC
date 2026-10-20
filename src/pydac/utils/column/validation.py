@@ -40,9 +40,10 @@ def validate_flat_vector(value, *, size, label):
 
 def validate_architecture_support(bed_architecture, *, is_1d, Nr):
     """Reject architecture/grid pairs the transport closures do not cover."""
-    from pydac.core.bed_architectures import validate_architecture_name
+    from pydac.core.bed_architectures import validate_architecture_name, validate_spatial_mode
 
     validate_architecture_name(bed_architecture)
+    validate_spatial_mode("1d" if is_1d else "2d", architecture=bed_architecture)
 
 
 def resolve_heats_of_adsorption(configured_heats, adsorbates):

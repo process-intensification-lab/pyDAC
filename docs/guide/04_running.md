@@ -43,7 +43,7 @@ Step names are case-insensitive, and the long names are accepted too (`PRE-HEATI
 
 Every step starts from the state the previous step left; the first step starts from the
 initial values of `startup`: its temperature, pressure, gas composition and sorbent
-loadings, which you can set, uniform over the bed. pyDAC 3.0.0 has no way to start a run
+loadings, which you can set, uniform over the bed. pyDAC 3.1.0 has no way to start a run
 from your own spatial profile.
 
 ## When a step stops

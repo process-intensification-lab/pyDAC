@@ -13,7 +13,7 @@ An NSGA-II campaign (`pydac nsga2`) searches the operating conditions of the cas
 default the steam-assisted temperature-vacuum swing adsorption, TVSA, cycle) for the best
 trade-off between energy and productivity. You give a case and bounds on a few operating
 variables. Each candidate is your case with those variables changed, run to cyclic steady state
-(CSS). The result is the Pareto front of the two objectives, which are fixed in pyDAC 3.0.0:
+(CSS). The result is the Pareto front of the two objectives, which are fixed in pyDAC 3.1.0:
 
 | Objective | Direction | Unit |
 |---|---|---|
@@ -54,7 +54,8 @@ The decision variables are set by the desorption step of the cycle:
 | `v_steam` | m/s | the superficial velocity of the steam in steam purge and steam-assisted desorption; only for a cycle with `s_des` |
 
 A cycle with steam-assisted desorption (`s_des`) has all six variables; a cycle with wall-heated
-desorption (`w_des`) has the first five. Before each candidate runs, the velocities become the
+desorption (`w_des`) has the first five. A campaign needs one of the two in `execution.cycle_steps`:
+a cycle with neither is refused. Before each candidate runs, the velocities become the
 case's flows: `v_feed` times the bed cross-section gives the feed flow in m³/s, and `v_steam`
 times the cross-section and the steam density at 373.15 K and `P_vac` gives the steam mass
 flow in kg/s (`P_vac` capped at the water saturation pressure at 373.15 K, about 1.013 bar). The complete case of each candidate is kept in its record in
@@ -80,7 +81,8 @@ or a pair that is not two finite numbers with lower < upper is refused.
 
 ## Constraints
 
-Without constraints, every candidate that runs is feasible. Each flag adds one constraint:
+Without constraints, every candidate that runs is feasible, and the campaign warns when it
+starts that it has no product constraint. Each flag adds one constraint:
 
 | Flag | Constraint | Unit |
 |---|---|---|
@@ -293,7 +295,7 @@ the call under `if __name__ == "__main__":`: on Windows and macOS the worker pro
 the script again.
 
 The objectives, the decision variables of the table above and the options on this page are
-what pyDAC 3.0.0 supports. The code has further options (other decision variables, warm
+what pyDAC 3.1.0 supports. The code has further options (other decision variables, warm
 starts from an earlier campaign, crossover and mutation parameters); they are internal and
 may change without notice.
 

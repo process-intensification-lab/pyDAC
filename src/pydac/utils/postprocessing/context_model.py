@@ -11,6 +11,7 @@ from pydac.utils.postprocessing.context_schema import (
     ARCHITECTURE_STATIC_BY_ID,
     COMMON_STATIC_BY_ID,
     COMMON_STATIC_PARAMETERS,
+    REGISTERED_ARCHITECTURE_MARKER,
     SIMULATION_CONTEXT_COLUMNS,
     STEP_ORDER,
     context_definition_row,
@@ -46,7 +47,8 @@ _TRANSPORT_PARAMETER_IDS = {
     "wall_bed_htc": "bed.resolved.wall_bed_htc",
 }
 _MODEL_PARAMETER_IDS = {
-    "heat_transfer": "bed.models.heat_transfer",
+    "wall_htc": "bed.models.wall_htc",
+    "overall_wall_htc": "bed.models.overall_wall_htc",
     "pressure_drop": "bed.models.pressure_drop",
     "dispersion": "bed.models.dispersion",
 }
@@ -59,6 +61,42 @@ _CLOSURE_PARAMETER_IDS = {
 }
 
 
+def _registered_architecture_rows(provider, context):
+    """Return a registered architecture's rows, in the order its entry declares.
+
+    ``bed.design.<key>`` and ``bed.material.<key>`` come from the canonical
+    design/material mappings, ``bed.provenance.<key>`` from the resolved
+    provenance. Every declared row needs its value, and every design/material
+    key needs a declared row, so nothing of the case identity is left out.
+    """
+    resolved = context.get("resolved") or {}
+    sources = {
+        "design": context.get("design") or {},
+        "material": context.get("material") or {},
+        "provenance": resolved.get("provenance") or {},
+    }
+    written = {category: set() for category in sources}
+    rows = []
+    for definition in provider.context_parameters:
+        _, category, key = definition.parameter_id.split(".")
+        if key not in sources[category]:
+            raise ValueError(
+                f"Bed architecture '{provider.name}' declares "
+                f"'{definition.parameter_id}', but its resolved context has no "
+                f"{category} value '{key}'."
+            )
+        rows.append(context_definition_row(definition, sources[category][key]))
+        written[category].add(key)
+    for category in ("design", "material"):
+        undeclared = sorted(set(sources[category]) - written[category])
+        if undeclared:
+            raise ValueError(
+                f"Bed architecture '{provider.name}' has {category} keys "
+                f"{undeclared} without a declared bed.{category}.* context row."
+            )
+    return rows
+
+
 def simulation_context_dataframe_from_model(model):
     """Capture the actual resolved context from one initialized step model."""
     context = getattr(model, "bed_architecture_context", None)
@@ -67,9 +105,17 @@ def simulation_context_dataframe_from_model(model):
             "Model has no resolved 'bed_architecture_context'."
         )
     architecture = context.get("architecture")
-    if architecture not in ARCHITECTURE_STATIC_BY_ID:
+    # A registered architecture brings its own row definitions, pinned on the
+    # model when it was built (never a fresh registry lookup).
+    provider = getattr(model, "bed_architecture_provider", None)
+    if provider is None and architecture not in ARCHITECTURE_STATIC_BY_ID:
         raise ValueError(
             f"Unsupported model bed architecture '{architecture}'."
+        )
+    if provider is not None and provider.name != architecture:
+        raise ValueError(
+            f"Model bed architecture '{architecture}' does not match its "
+            f"registered provider '{provider.name}'."
         )
     step = nonempty_context_text(getattr(model, "step", None), "model.step").lower()
     if step not in STEP_ORDER:
@@ -99,17 +145,21 @@ def simulation_context_dataframe_from_model(model):
         raise ValueError(
             "bed_architecture_context must contain design and resolved mappings."
         )
-    architecture_definitions_by_id = ARCHITECTURE_STATIC_BY_ID[
-        architecture
-    ]
-    for key, parameter_id in _DESIGN_PARAMETER_IDS.items():
-        if key in design:
-            rows.append(
-                context_definition_row(
-                    architecture_definitions_by_id[parameter_id],
-                    design[key],
+    if provider is None:
+        architecture_definitions_by_id = ARCHITECTURE_STATIC_BY_ID[
+            architecture
+        ]
+        for key, parameter_id in _DESIGN_PARAMETER_IDS.items():
+            if key in design:
+                rows.append(
+                    context_definition_row(
+                        architecture_definitions_by_id[parameter_id],
+                        design[key],
+                    )
                 )
-            )
+    else:
+        rows.append(context_definition_row(REGISTERED_ARCHITECTURE_MARKER, provider.name))
+        rows.extend(_registered_architecture_rows(provider, context))
     structure = resolved.get("structure")
     transport = resolved.get("transport")
     models = resolved.get("models")

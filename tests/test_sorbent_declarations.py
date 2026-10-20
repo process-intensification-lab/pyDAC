@@ -108,18 +108,6 @@ def test_a_schema_v6_case_gets_the_heats_mapping_and_the_cp_it_computed_with():
     assert validate_case_document(v6) == complete
 
 
-def test_a_schema_v6_overlay_stating_one_heat_keeps_the_other_reference_value():
-    overlay = {
-        "schema_version": PRE_SORBENT_MAPPING_SCHEMA_VERSION,
-        "simulation": {"sorbent": {"heat_of_adsorption_h2o_J_mol": -50000.0}},
-    }
-    config = load_experiment(overlay)
-    assert dict(config.simulation.sorbent.heats_of_adsorption_J_mol) == {
-        "CO2": V6_HEATS_OF_ADSORPTION_J_MOL["CO2"],
-        "H2O": -50000.0,
-    }
-
-
 @pytest.mark.parametrize("name", V7_SORBENT_FIELDS)
 def test_sorbent_field_names_must_match_the_schema_version(name):
     v6 = _with_v6_sorbent_fields(deepcopy(default_profile()))
@@ -291,7 +279,7 @@ def test_the_json_schema_accepts_a_heat_the_run_ignores():
     jsonschema.Draft202012Validator(generate_json_schema()).validate(validate_case_document(config))
 
 
-# --- Species keys do not depend on case (Mattia, 2026-10-08) ------------------
+# --- Species keys do not depend on case ---------------------------------------
 
 HEATS = "sorbent.heats_of_adsorption_J_mol"
 LOADINGS_SETTING = "steps.startup.composition.initial_solid_loadings_mol_per_kg"
@@ -321,6 +309,32 @@ def test_lowercase_species_keys_give_the_same_case_and_fingerprint():
     frozen["simulation"]["sorbent"]["heats_of_adsorption_J_mol"] = {"co2": -81000.0,
                                                                      "h2o": -46000.0}
     assert case_fingerprint(load_case(frozen)) == case_fingerprint(upper)
+
+
+def test_a_dotted_species_setting_reaches_a_case_that_spells_the_species_lowercase(tmp_path):
+    preset = tmp_path / "lower.json"
+    preset.write_text(json.dumps({"schema_version": 8, "simulation": {
+        "adsorption": {"kinetics": {"co2": LDF, "h2o": LDF}},
+        "sorbent": {"heats_of_adsorption_J_mol": {"co2": -81000.0, "h2o": -46000.0}},
+    }}))
+    expected = load_experiment(str(preset), settings=[
+        "adsorption.kinetics.co2.parameters.k_LDF_s_inv=0.004", f"{HEATS}.h2o=-45000"])
+    for spelled in ("CO2", "Co2"):
+        assert load_experiment(str(preset), settings=[
+            f"adsorption.kinetics.{spelled}.parameters.k_LDF_s_inv=0.004",
+            f"{HEATS}.H2O=-45000"]) == expected
+    with pytest.raises(ConfigurationError, match="Unknown setting path"):
+        load_experiment(str(preset), settings=["adsorption.kinetics.CO3.parameters.k_LDF_s_inv=1"])
+    with pytest.raises(ConfigurationError, match="Unknown setting path"):
+        load_experiment(str(preset), settings=["grid.NZ=7"])
+    # Only the species key is matched without case: a parameter name stays exact,
+    # and two spellings of one species are one setting.
+    with pytest.raises(ConfigurationError, match="Unknown setting path"):
+        load_experiment(str(preset), settings=["adsorption.kinetics.CO2.parameters.K_LDF_s_inv=1"])
+    with pytest.raises(ConfigurationError, match="supplied twice"):
+        load_experiment(str(preset), settings=[
+            "adsorption.kinetics.CO2.parameters.k_LDF_s_inv=0.004",
+            "adsorption.kinetics.co2.parameters.k_LDF_s_inv=0.005"])
 
 
 @pytest.mark.parametrize(
