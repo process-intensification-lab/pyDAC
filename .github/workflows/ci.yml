@@ -60,7 +60,7 @@ jobs:
       matrix:
         include:
           - {name: floor, os: ubuntu-latest, python: "3.11", install: lowest}
-          - {name: qualification, os: ubuntu-latest, python: "3.12.2", install: lock}
+          - {name: qualification, os: ubuntu-24.04, python: "3.12.2", install: lock}
           - {name: qualification, os: windows-latest, python: "3.12.2", install: lock}
           - {name: base-only, os: ubuntu-latest, python: "3.12", install: base}
           - {name: newest, os: ubuntu-latest, python: "3.13", install: highest}
