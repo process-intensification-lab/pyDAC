@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.2.0 (unreleased)
+## 3.2.0
 
 ### Added
 - An optional vacuum pump of finite speed on the outlet of `blow`, `heat`, `w_purge` and `w_des`,
