@@ -43,7 +43,7 @@ There is one configuration pipeline. What changes is only where the values come 
 
 The built route ends in
 
-```python
+```text
 config.loader.load_experiment(source, settings=...) -> ExperimentConfig
 ```
 
@@ -191,8 +191,8 @@ desorption mode must be stated explicitly
 
 ### 2.4 The live settings catalog
 
-Every subcommand prints the accepted vocabulary without resolving a case or starting a
-simulation:
+The `steps`, `css`, `nsga2` and `validate` subcommands print the accepted vocabulary with
+`--show-settings`, without resolving a case or starting a simulation:
 
 ```bash
 pydac validate --show-settings
@@ -209,6 +209,11 @@ geometry.aspect_ratio                                                default=0.5
 steps.s_purge.termination.threshold_value                            default=1e-07              number; nullable; > 0
 steps.s_des.flow.steam_mass_flow_kg_s                                default=0.001              number; nullable; >= 0
 ```
+
+The limits are those of the schema. A run needs more on one of them: use at least 3 axial
+cells (`grid.nz >= 3`), because the step post-processing rebuilds the inlet velocity from
+them; validation and `--dry-run` do not check it yet, and a run with fewer cells stops in its
+post-processing.
 
 The path before `default=` is what `--set` and `settings={...}` take. `bed` accepts either a
 complete mapping or the named preset `packed_bed_default`; `bed.design`, `bed.material`,
@@ -306,7 +311,7 @@ Per-cycle control in a CSS run lives in `execution.cycle_options[n]["step_option
 
 | Section | Fields | Notes |
 |---|---|---|
-| `grid` | `nz`, `nr`, `nt`, `nr_plot_2d` | `nr = 1` is 1D, `nr > 1` is 2D |
+| `grid` | `nz`, `nr`, `nt`, `nr_plot_2d`, `output_schedule` | `nr = 1` is 1D, `nr > 1` is 2D |
 | `solver` | `rtol`, `atol`, `atol_scalar_mass`, `atol_scalar_energy` | CVODE tolerances; defaults `1e-8`, `1e-10`, `1e-8`, `1e-6` |
 | `bed` | `architecture`, `design`, `material` | `null` gives the default packed bed owned by `core/bed_architectures` (§4.6) |
 | `geometry` | `specified_by`, `aspect_ratio`, `volume_m3`, `length_m`, `radius_m` | one pair is given, the other computed (§4.3) |
@@ -368,7 +373,7 @@ Each entry of `component_parameters` has these six numbers, all required:
 A complete block, for CO2 and N2 on zeolite 13X, is in
 [`examples/cases/02_custom_case.json`](../../examples/cases/02_custom_case.json).
 
-Schema version 8 is the form written to `resolved_config.json`. Older documents are upgraded
+Schema version 11 is the form written to `resolved_config.json`. Older documents are upgraded
 while loading, deterministically: a schema-1 case gets the named mixture and model
 declarations above, a schema-2 case loses its linear-solver fields (§4.5), and a schema-3 case
 gets the per-step `outlet` group with the values that reproduce what it computed (product
@@ -384,8 +389,14 @@ mapping `sorbent.heats_of_adsorption_J_mol` (`CO2`, `H2O`; a field the document 
 keeps its reference value), plus the `heat_capacity` and `fixed_adsorbates` it computed with
 (Lewatit `Low2023`, none). A schema-7 case (and every older one) gets
 `composition.initial_solid_loadings_mol_per_kg = null` in every step it states: the startup
-solid in equilibrium with the initial gas, as it computed. In every rename or addition the new
-field inside an older document is refused. Once resolved or exported, the document is schema 8.
+solid in equilibrium with the initial gas, as it computed. A schema-8 case (and every older
+one) gets `flow.vacuum_outlet_model = "valve"` and the five `flow.vacuum_pump_*` /
+`vacuum_setpoint_band_fraction` fields as `null` in every `flow` group it states: the valve it
+computed with. The same case also gets `flow.press_inlet_model = "valve"` with null
+feed-blower fields. Every case
+older than schema 11 gets the output schedule off and the one-way outlet off: the plant it
+computed with. In every rename or addition the new field inside an older document is refused.
+Once resolved or exported, the document is schema 11.
 
 ### 4.2 A step: ten names, seven groups, fixed order
 
@@ -397,7 +408,7 @@ The group order is part of the contract:
 | Group | Fields |
 |---|---|
 | `composition` | `co2_feed_mole_fraction`, `relative_humidity`, `co2_initial_mole_fraction`, `initial_relative_humidity`, the optional `o2_`/`n2_` feed and initial mole fractions, and `initial_solid_loadings_mol_per_kg` (startup only, see below) |
-| `flow` | `volumetric_flow_m3_s`, `steam_mass_flow_kg_s`, `blowdown_valve_conductance`, `pressurization_valve_conductance` (α in 1/m of dp/dn = α (p_set − p) at the outlet or inlet valve; null is an ideal valve) |
+| `flow` | `volumetric_flow_m3_s`, `steam_mass_flow_kg_s`, `blowdown_valve_conductance`, `pressurization_valve_conductance` (α in 1/m of dp/dn = α (p_set − p) at the outlet or inlet valve; null is an ideal valve), `ads_outlet_overpressure_Pa` (the one-way outlet of `ads`/`startup`, below), `press_inlet_model`, `feed_blower_flow_m3_s`, `feed_blower_band_fraction` (the feed blower of `press`, below), `vacuum_outlet_model`, `vacuum_pump_speed_m3_s`, `vacuum_pump_ultimate_pressure_Pa`, `vacuum_setpoint_band_fraction`, `vacuum_pump_idle_mode`, `vacuum_pump_idle_power_W` (the vacuum pump outlet, below) |
 | `thermal` | `feed_temperature_K`, `initial_temperature_K`, `jacket_temperature_K`, `ambient_temperature_K`, `external_htc_W_m2K` |
 | `pressure` | `initial_pressure_Pa`, `outlet_pressure_Pa`, `feed_pressure_Pa`, `ambient_pressure_Pa` |
 | `horizon` | `nominal_time_s`, `event_max_time_s` |
@@ -407,6 +418,61 @@ The group order is part of the contract:
 `external_htc_W_m2K` is the outer-wall to jacket coefficient; `0` makes the outer wall
 adiabatic (the wall keeps its heat capacity and still exchanges heat with the bed, and
 `E_jacket` stays zero), while `null` inherits the default 1000 W/m2K.
+
+`flow.vacuum_outlet_model` says how a vacuum-connected step (`blow`, `heat`, `w_purge`,
+`w_des`) draws its outlet. There are two modes:
+
+| Mode | What it is | Capacity | Vacuum energy |
+|---|---|---|---|
+| `"valve"` (default on every step) | a throttling valve into a vacuum reservoir held at `pressure.outlet_pressure_Pa`, with `blowdown_valve_conductance` | unlimited: the reservoir takes any flow | isentropic work on the removed gas at the bed pressure |
+| `"vacuum_pump"` (opt-in, 1D) | a pump of finite speed with pressure control at the setpoint `outlet_pressure_Pa` | the pump speed S(p) | the same, plus a standby power while the control throttles |
+
+With the pump, the control holds the step's `outlet_pressure_Pa` as its setpoint and the
+pump can move at most its speed, so a bed that releases gas faster than the pump takes it
+stays above the setpoint. The law does not say how the control throttles (on/off with an
+isolation valve, a variable-speed drive, or a valve in front of a fixed-speed pump): the bed
+sees the same removal. You declare it through the idle mode, because that is what the
+energy depends on. The pump is opt-in and 1D only (`grid.nr = 1`); the law, its stopping
+rules and its energy are in
+[05 — Cycle steps §2.7](05_cycle_steps.md#27-vacuum-pump-outlet-1d-opt-in). Five more `flow`
+fields belong to it. The last column describes a field that remains null after the case has been
+resolved. An explicit null in a preset or a setting inherits the value from the lower layer; it
+does not reset that value. See §5 for the null rules.
+
+| Field | Meaning | Resolved null |
+|---|---|---|
+| `vacuum_pump_speed_m3_s` | asymptotic pump speed S0 [m3/s]; the speed falls as S(p) = S0 (1 − p_ult/p) near the ultimate pressure | refused with the pump: the speed is required and must be > 0 |
+| `vacuum_pump_ultimate_pressure_Pa` | ultimate pressure p_ult [Pa] of the pump, ≥ 0 and below the step's `outlet_pressure_Pa` | 0 |
+| `vacuum_setpoint_band_fraction` | width δ/P_set of the throttle band over the setpoint, in [1e-6, 0.1] (smaller bands are not resolvable next to the setpoint): the control is closed at P_set and fully open above P_set + δ | 1e-3 |
+| `vacuum_pump_idle_mode` | what the pump draws while the control holds it without removing gas: `"off"` (on/off with an isolation valve, the pump is off: no standby power), `"minimum_speed"` (variable-speed drive at its minimum speed) or `"fixed_speed"` (a fixed-speed pump running against the closed control valve) | `"off"` |
+| `vacuum_pump_idle_power_W` | standby power P_idle [W], charged as P_idle (1 − g) while the control throttles: the vendor's absorbed power at minimum speed (`"minimum_speed"`) or at the ultimate pressure (`"fixed_speed"`). Required and > 0 with those two modes, refused with `"off"` | none |
+
+The speed is a nameplate value at the pump inlet, not a value per bed: scale it with the bed
+volume yourself (for example 1500 bed volumes per hour, 0.0417 m3/s for a 0.1 m3 bed). The
+idle power is a vendor value too: read it from the pump's absorbed-power curve, and scale it
+with the pump if you scale the speed. It matters: a pump of a few kW held ready through a
+30-minute heating step costs megajoules, far more than the gas it removes there. How to pick the mode for
+your plant, with examples, is in
+[the user guide](../guide/03_cases.md#the-vacuum-outlet-valve-or-pump). With
+`"valve"` the five pump fields must stay `null`, and `"vacuum_pump"` is refused on any other
+step and on a 2D grid. With the pump, `blowdown_valve_conductance` is **not read**: you do
+not need to clear it (an explicit `null` inherits, so the built-in 0.01 1/m of `blow` would
+stay anyway), and when a finite conductance is set the model build prints one line saying
+that it is ignored.
+
+A pump step that stops on a pressure event needs its target **above** the throttle band. With
+`metric` `max_internal_pressure`, `avg_outlet_pressure` or `min_internal_pressure` and
+`direction: "below"`, a target at or under P_set + δ may not be reached: inside the band the
+control throttles the flow, and at or below P_set it stops pumping, so the approach slows
+down. The step may then end on the pressure plateau or at `event_max_time_s`, and that stop
+instant is ill-conditioned (it can still end on the target, for example when cooling or
+adsorption lowers the pressure, or when the target is already met at the start). Validation
+issues a warning for such a step when it may run in event mode; [manual 05 §3](05_cycle_steps.md#3-time-based-and-event-based-stopping) describes how
+the effective mode is resolved. Set `threshold_source: "p_out"` and choose a positive
+`threshold_offset` larger than `vacuum_setpoint_band_fraction * outlet_pressure_Pa`. The offset
+is an absolute pressure in Pa, not a fraction: 100 Pa is a 0.5 % margin at 20 kPa, and must be
+recomputed when the setpoint or band changes. The built-in `+25 Pa` of `blow` lies strictly
+above the default band only for setpoints below 25 kPa.
 
 `outlet` says where the step's outlet stream goes; it changes the post-processing and the
 cycle KPIs, never the solved column. With `collect_product = true` the stream enters the
@@ -577,6 +643,34 @@ design fields are refused.
 
 ---
 
+### Feed blower inlet (schema 11, 3.2.0)
+
+Every canonical step has these `flow` fields; only 1D `press` can select the blower:
+
+| Field | Default / constraint | Meaning |
+|---|---|---|
+| `press_inlet_model` | `"valve"` or `"feed_blower"` | Opt-in supply law |
+| `feed_blower_flow_m3_s` | null; finite positive value required for blower | Whole inlet capacity at this press step's feed pressure and temperature |
+| `feed_blower_band_fraction` | null resolves to `1e-3`; finite in `[1e-6, 0.1]` (smaller bands are not resolvable next to the setpoint) | Throttle width / feed pressure |
+
+The two supply-only fields must resolve to null on the valve. Explicit null inherits
+from a non-null preset; it cannot clear that value (§4.2). The model enum is non-nullable.
+`pressurization_valve_conductance` is ignored with the blower, including zero; a build
+notice identifies a finite declared conductance. `volumetric_flow_m3_s` and runtime
+`u_inlet`/Re remain property-correlation evaluation quantities, not the delivered flow.
+
+A document of an older schema refuses **every** key introduced after its version, even when
+null. A document of schema 8 or older (pyDAC 3.1.0 and earlier) migrates to the valve inlet.
+Complete frozen
+cases use a versioned vocabulary; partial legacy presets retain missing-field semantics.
+Export writes schema 11. The generated JSON schema documents the same vocabulary.
+
+To size the blower to the adsorption feed, set `feed_blower_flow_m3_s` equal to
+`steps.ads.flow.volumetric_flow_m3_s`. That coupling is up to the case: an NSGA-II change of
+`v_feed` does not resize a per-step blower. At equal volumetric flow the molar capacity depends
+on the supply pressure and temperature (ideal gas); the composition sets how it splits between
+the species, and the mass flow. See manual 05 §4.10 and 06 §8.1.
+
 ## 5. Omitted vs `null`
 
 In a preset or a `--set` list, omitting an ordinary field means "inherit". Two exceptions: a
@@ -591,8 +685,8 @@ and each path that accepts one names its outcome
 |---|---|---|
 | `CANONICAL` | the module that owns the value supplies it | `simulation.bed`, the only one: the packed-bed design belongs to `core/bed_architectures` |
 | `DERIVED` | the derivation stage computes it | `geometry.length_m`, `geometry.radius_m`, `geometry.aspect_ratio`, `geometry.volume_m3` (whichever pair `specified_by` computes) |
-| `DISABLED` | stays `None`; the feature is off | `wall.overall_htc_override_W_m2K`, `wall.bed_wall_htc_override_W_m2K`, `bed.material`, `execution.resume_from_cycle`, `execution.cycle_steps`, `execution.termination_mode`, `execution.css_probe_step`, `execution.extra_tag` |
-| `INHERIT` | same as omitting | every step field whose typed record admits `None` (`NULLABLE_STEP_FIELDS` in `config/steps.py`) |
+| `DISABLED` | stays `None`; the feature is off | the four `grid.output_schedule` fields, `steps.ads.flow.ads_outlet_overpressure_Pa`, `steps.startup.flow.ads_outlet_overpressure_Pa`, `wall.overall_htc_override_W_m2K`, `wall.bed_wall_htc_override_W_m2K`, `bed.material`, `execution.resume_from_cycle`, `execution.cycle_steps`, `execution.termination_mode`, `execution.css_probe_step`, `execution.extra_tag` |
+| `INHERIT` | same as omitting | every other step field whose typed record admits `None` (`NULLABLE_STEP_FIELDS` in `config/steps.py`) |
 
 Anywhere else, `null` is an error: ``null` is not allowed for `simulation.grid.nz`.``
 
@@ -726,7 +820,7 @@ A complete one, saved as a JSON file, runs again with `--case`.
 | ``null` is not allowed for `simulation.grid.nz`.`` | that field has no `null` policy: give it a value or omit it (§5) |
 | ``CLI settings must use the form `path=value`, received 'grid.nz'.`` | a `--set` item without `=` |
 | ``Invalid resolved experiment configuration: `simulation.grid.nz` must be greater than or equal to 1.`` | the value is well-formed JSON but outside the contract |
-| ``Unsupported `schema_version`…`` | the document is neither schema 8 nor an upgradable older version |
+| ``Unsupported `schema_version`…`` | the document is neither schema 11 nor an upgradable older version |
 | ``Invalid configuration for step `cool`: `outlet.collect_product` must be false…`` | `startup` and `ads` discharge to the atmosphere and `cool` and `press` have a closed outlet; none of them can feed the product line (§4.2) |
 | ``…`outlet.condenser` requires `outlet.collect_product`…`` | a vented step has no product line; set `condenser` to `false` when `collect_product` is `false` |
 | ``No step of the cycle … collects product…`` | every repeating step vents; collect the outlet of at least one (§4.2) |
@@ -736,6 +830,12 @@ A complete one, saved as a JSON file, runs again with `--case`.
 | ``…Initial solid loadings must cover the declared adsorbates exactly (missing=[…], unknown=[…])`` | the initial loadings name every adsorbate and nothing else; none may be omitted (§4.2) |
 | ``…names CO2 twice; species names do not depend on case.`` | a species-keyed mapping has two keys for one species, such as `CO2` and `co2`; keep one (§4.1) |
 | ``…`composition.initial_solid_loadings_mol_per_kg` in frozen case exists only since case schema 8…`` | the field is new in schema 8; set `schema_version` to 8 (§4.1) |
+| ``…`flow.vacuum_outlet_model` in frozen case is new in pyDAC 3.2.0…`` | the vacuum-pump, feed-blower, output-schedule and one-way-outlet fields are new in 3.2.0; set `schema_version` to 11 (§4.1) |
+| ``…`flow.vacuum_pump_speed_m3_s` is read only with `vacuum_outlet_model` = 'vacuum_pump'…`` | a pump-only field resolves to a non-null value on a valve step; select the pump, or use a base/preset in which all pump-only fields resolve to null. A null setting cannot clear an inherited value (§4.2) |
+| ``…`flow.vacuum_pump_idle_power_W` is read only with `vacuum_pump_idle_mode` 'minimum_speed' or 'fixed_speed'…`` | an idle power resolves to a value while the mode is `"off"`; declare `"minimum_speed"` or `"fixed_speed"`, or remove the power from the preset so it resolves to null. A null setting cannot clear an inherited power (§4.2) |
+| ``…`flow.vacuum_pump_idle_power_W` must be a positive power [W] with `vacuum_pump_idle_mode` = …`` | a declared idle mode without its power; give the vendor's absorbed power (§4.2) |
+| ``…`vacuum_outlet_model` = 'vacuum_pump' applies only to the vacuum-connected steps…`` / ``…is implemented only on a 1D grid…`` | the pump draws the outlet of `blow`, `heat`, `w_purge` and `w_des`, on a 1D grid only (§4.2) |
+| ``…the … target … Pa is at or below the upper edge of the vacuum pump's throttle band…`` (warning) | a descending pressure target is at or below P_set + δ; the step may stop on the pressure plateau or at the time cap before reaching it. Put the intended target above the band (§4.2) |
 | ``Step `w_purge` runs in event mode on `max_bed_oxygen_mole_fraction`, which needs O2…`` | the stop metric needs a species the mixture lacks; pick another metric or run the step in time mode (§4.2) |
 | ``…`steps.s_des.flow.volumetric_flow_m3_s` is computed from the step's `steam_mass_flow_kg_s`…`` | a written steam-step volumetric flow differs from the one derived from its steam mass flow; leave it null (§4.3) |
 | ``…`geometry.length_m` is computed from `geometry.aspect_ratio` and `geometry.volume_m3`…`` | a written computed geometry value differs from the computed one; leave it null, or switch `geometry.specified_by` (§4.3) |
@@ -955,3 +1055,20 @@ first.
 - [00 — Framework map](00_framework_map.md): layers and entry points.
 - [05 — Cycle steps](05_cycle_steps.md): the physics of each step.
 - [07 — NSGA-II optimization](07_nsga2_optimization.md): campaign internals.
+
+
+## Output schedule and one-way outlet (schema 11, 3.2.0)
+
+Schema 11 adds `simulation.grid.output_schedule`, an object with nullable
+`dense_start_s`, `dense_start_points`, `first_output_s`, `max_output_spacing_s`.
+All four null selects the original linspace. Set window and count together (count integer >=2);
+first defaults to 1e-6 s only in a window. Require 0<first<=window<=each step horizon.
+Positive maximum spacing adds a uniform grid; all outputs are the union with the original Nt backbone.
+Enabled schedules require nt>=2. Schedule leaves accept null to disable; outputs do not impose CVODE breakpoints.
+Example: `{"dense_start_s":10,"dense_start_points":4001,"first_output_s":1e-7,"max_output_spacing_s":0.1}`.
+
+`steps.ads.flow.ads_outlet_overpressure_Pa` and its startup counterpart are null by default.
+Set a finite positive pressure rise at nominal bed-referred feed velocity to select a one-way outlet.
+Only 1D ads/startup with positive nominal feed flow accept it; every other step/2D refuses it.
+Null disables it, including when overriding a preset. Migration of an older document inserts disabled
+defaults. New field names require schema 11 even if null.

@@ -34,7 +34,7 @@ physical inputs.
 `pydac.run_nsga2` checks the campaign before it writes anything: the base case passes the same
 preflight as a CSS run, the bounds name exactly the decision variables of the cycle, the
 constraints fit the mixture and the cycle (an O2 limit needs O2; `steam_condensation` needs H2O
-and a cycle whose desorption step is `s_des`, otherwise the campaign is refused), and the candidate cases at the lower and the upper corner of the bounds are resolved
+and a cycle whose desorption step is `s_des` with a `heat` or `w_purge` step that preheats the bed, otherwise the campaign is refused), and the candidate cases at the lower and the upper corner of the bounds are resolved
 without solving, so a base case that disagrees with the bounds is refused before the first
 generation (`preflight_search_space`). A coupling that fails only inside the box is not
 caught there: that candidate fails when it runs. The campaign folder is then named by
@@ -92,7 +92,7 @@ by default; a campaign with none of them active issues a `UserWarning` when it s
 |---|---|
 | `purity_min` | `purity_min - purity` |
 | `oxygen_ppm_max` | `oxygen_ppm - oxygen_ppm_max` |
-| `steam_condensation` | `T_steam_condensation - T_bed_min_preheat`; enabling it without H2O or without `s_des` is refused before the campaign starts |
+| `steam_condensation` | `T_steam_condensation - T_bed_min_preheat`; enabling it without H2O, without `s_des` or without a `heat` or `w_purge` step is refused before the campaign starts |
 | `eq_work_max` | `eq_work - eq_work_max` |
 
 A failed candidate gets large objective and constraint values, so it is infeasible and never

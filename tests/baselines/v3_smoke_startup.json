@@ -4,7 +4,7 @@
   "case": {
     "path": "tests/cases/v3_smoke_startup.json",
     "sha256": "fedd7b6fe45dc4925fcd9657d602d1361e4ee46edc640ba546c3c9c3ae263e4e",
-    "fingerprint": "0463d24736e6dba6c7e7fb66c5d746d67d6f9ef5b96251c906f0bd686fbca4ed"
+    "fingerprint": "f1b6531004176bee884faef2fa847f8e08baf10c7472908e53f0f21f8fef95f0"
   },
   "comparison_policy": "v3_regression",
   "observations": {

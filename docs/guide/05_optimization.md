@@ -13,7 +13,7 @@ An NSGA-II campaign (`pydac nsga2`) searches the operating conditions of the cas
 default the steam-assisted temperature-vacuum swing adsorption, TVSA, cycle) for the best
 trade-off between energy and productivity. You give a case and bounds on a few operating
 variables. Each candidate is your case with those variables changed, run to cyclic steady state
-(CSS). The result is the Pareto front of the two objectives, which are fixed in pyDAC 3.1.0:
+(CSS). The result is the Pareto front of the two objectives, which are fixed in pyDAC 3.2.0:
 
 | Objective | Direction | Unit |
 |---|---|---|
@@ -89,11 +89,12 @@ starts that it has no product constraint. Each flag adds one constraint:
 | `--purity-min X` | CO2 mole fraction of the recovered product, water included, at least `X` | fraction, for example `0.95` |
 | `--oxygen-ppm-max X` | O2 in the recovered product at most `X` | ppm (molar) |
 | `--eq-work-max X` | equivalent work at most `X` | MJ per kg of recovered CO2 |
-| `--steam-condensation` | at the end of heating, the coldest point of the bed is at or above the water saturation temperature at the heating pressure, so steam does not condense when it enters | |
+| `--steam-condensation` | at the end of `heat` (or of `w_purge` when the cycle has no `heat`), the coldest point of the bed is at or above the water saturation temperature at that step's feed pressure, so the bed is warm enough for steam not to condense on it | |
 
 One condition is always active: a candidate whose run fails, or that does not reach CSS while
 `execution.require_css` is true, is infeasible. `--steam-condensation` applies only to cycles
-with steam-assisted desorption and needs H2O in the mixture; `--oxygen-ppm-max` needs O2 in
+with steam-assisted desorption and a `heat` or `w_purge` step that preheats the bed, and needs
+H2O in the mixture; `--oxygen-ppm-max` needs O2 in
 the mixture. Otherwise the campaign is refused before it starts.
 
 ## Check before running
@@ -158,7 +159,7 @@ The options:
 | `--workers N` | `1` | local processes that evaluate candidates in parallel; to keep each at one numerical thread, set `OMP_NUM_THREADS=1`, `OPENBLAS_NUM_THREADS=1` and `MKL_NUM_THREADS=1` in the shell before starting |
 | `--seed N` | `1` | random seed of the optimizer |
 | `--termination MODE` | `fixed_generations` | the stop rule, see below |
-| `--max-evaluations N` | none | an upper limit on candidate evaluations, in either stop rule |
+| `--max-evaluations N` | none | a limit on candidate evaluations, in either stop rule; it is checked at the end of each generation, so the generation that reaches it is completed and can pass it |
 
 `--workers` changes only the speed: the same campaign with another number of workers gives
 the same result.
@@ -193,7 +194,7 @@ committed: fix the cause and run the same command again.
 
 The campaign folder is `OUTPUT_ROOT/nsga2/` followed by `execution.extra_tag` (when you set
 one), the grid, the bed and a hash. This example sets no tag, so its folder is
-`simulation_results/nsga2/1D_25z_packed_bed_0b76eb17`. The hash is computed from the whole
+`simulation_results/nsga2/1D_25z_packed_bed_c60786ac`. The hash is computed from the whole
 campaign definition: the base case, the variables and bounds, the constraints, the population
 size, the generations, the seed and the stop rule (not the workers). Changing any of them
 starts a new campaign in a new folder. The commands below use the folder of the example
@@ -221,7 +222,7 @@ pydac nsga2 --case my_case.json --bounds my_bounds.json --pop-size 4 --generatio
 ```
 
 ```text
-Refused: simulation_results/nsga2/1D_25z_packed_bed_0b76eb17 already holds committed generations of this campaign; continue it with --resume, or change the seed or output root for a new one.
+Refused: simulation_results/nsga2/1D_25z_packed_bed_c60786ac already holds committed generations of this campaign; continue it with --resume, or change the seed or output root for a new one.
 exit code 2
 ```
 
@@ -235,7 +236,7 @@ A campaign that was interrupted, for example with Ctrl+C or because the machine 
 continues from its last committed generation:
 
 ```bash
-pydac nsga2 --resume simulation_results/nsga2/1D_25z_packed_bed_0b76eb17 --dry-run || echo "exit code $?"
+pydac nsga2 --resume simulation_results/nsga2/1D_25z_packed_bed_c60786ac --dry-run || echo "exit code $?"
 ```
 
 The whole campaign definition is read from the folder, so `--resume` accepts only
@@ -264,7 +265,7 @@ version.
 saved results. It solves nothing and accepts no other option:
 
 ```bash
-pydac nsga2 --report simulation_results/nsga2/1D_25z_packed_bed_0b76eb17
+pydac nsga2 --report simulation_results/nsga2/1D_25z_packed_bed_c60786ac
 ```
 
 ## Exit codes
@@ -295,7 +296,7 @@ the call under `if __name__ == "__main__":`: on Windows and macOS the worker pro
 the script again.
 
 The objectives, the decision variables of the table above and the options on this page are
-what pyDAC 3.1.0 supports. The code has further options (other decision variables, warm
+what pyDAC 3.2.0 supports. The code has further options (other decision variables, warm
 starts from an earlier campaign, crossover and mutation parameters); they are internal and
 may change without notice.
 

@@ -71,6 +71,24 @@ selects the dense diagnostic path. An older case asking for `direct` or `auto`
 is upgraded and one asking for GMRES is refused; see
 [01 — Inputs §4.5](01_inputs.md#45-the-linear-solver).
 
+### 1.4 Rejected trial states
+
+CVODE's Newton iteration can propose a trial state that is physically impossible: a
+non-positive total concentration or temperature, a negative species concentration or closure
+species, or a non-finite value. When the right-hand side raises a `ValueError` at such a state
+(the drag law cannot invert a negative pressure, for example), the solver returns NaN
+derivatives instead; CVODE rejects the attempt and retries with a smaller step. A `ValueError` at a physical state is a genuine error and is
+raised as before. After 1000 rejections in one solve (counted cumulatively, not in a row) the
+solver gives up with an error that names the first one. Independently of rejections, a solve
+that reports success but whose saved times, states or event arrays are not finite (also when
+an initial event skips CVODE) is marked as failed, with status `nonfinite_output` in both
+`sol["cvode"]` and the termination summary. One rejected attempt
+usually brings a few dozen more: the NaN also reaches CVODE's difference-quotient Jacobian,
+which is rebuilt before the step goes on. A step that needed any records them in its solution, `sol["cvode"]`:
+`rhs_rejections` (the count) and `first_rhs_rejection` (time in s and message), and prints one
+line; a step that needed none saves exactly as before. Rejections are expected on a vacuum
+pump step whose pressure control reopens (§2.7).
+
 ---
 
 ## 2. Boundary-condition framework
@@ -116,11 +134,19 @@ The axial pressure BCs, assembled by `ColumnModelMoL.set_bc()` in
 | `startup`, `ads`, `s_purge`, `s_des` | Dummy/open: `a=0, b=0, d=0` | Dirichlet: `a=0, b=1, d=p_out/p_ref` | Feed enters through inlet fluxes, not through a pressure Robin BC |
 | `blow`, `heat`, `w_purge`, `w_des` | Zero gradient: `a=1, b=0, d=0` | Valve Robin: `a=1/(alpha_bd L), b=1, d=p_out/p_ref` | If `alpha_bd = inf`, this collapses to an outlet Dirichlet condition |
 | `cool` | Zero gradient: `a=1, b=0, d=0` | Zero gradient: `a=1, b=0, d=0` | Sealed-bed pressure BC |
-| `press` | Valve Robin: `a=1/(alpha_ps L), b=1, d=p_feed/p_ref` | Zero gradient: `a=1, b=0, d=0` | Inlet-driven pressurization |
+| `press` (valve) | Valve Robin: `a=1/(alpha_ps L), b=1, d=p_feed/p_ref` | Zero gradient: `a=1, b=0, d=0` | Inlet-driven pressurization |
 
 Important implementation detail:
 
 - `heat`, `w_purge`, and `w_des` default to `alpha_bd = inf`, so they still use the Robin form in the code, but the effective behavior is outlet Dirichlet at `p_out`.
+- With `flow.vacuum_outlet_model = "vacuum_pump"` (1D) these four steps build the outlet
+  pressure operator with `a = 0` (the Dirichlet form, whatever `alpha_bd`), and the
+  outlet-face velocity is replaced by the pump law of §2.7, so `alpha_bd` is not read.
+
+With `flow.press_inlet_model = "feed_blower"` (1D press only), the dormant inlet
+pressure operator remains, with `ps_fact = 0`; the inlet-face velocity is replaced
+before publishing fields and rebuilding transport fluxes. Conductance is ignored.
+The outlet remains sealed. No cell pressure is prescribed by this law.
 
 ### 2.4 Radial BCs
 
@@ -139,10 +165,10 @@ pressure law and then constrained according to the physical step:
 
 | Step(s) | Inlet-face handling | Outlet-face handling |
 |---------|---------------------|----------------------|
-| `startup`, `ads`, `s_purge`, `s_des` | Inlet velocity extrapolated from interior faces | Outlet left free |
-| `blow`, `heat`, `w_purge`, `w_des` | Inlet velocity forced to zero | Outlet left free |
+| `startup`, `ads`, `s_purge`, `s_des` | Inlet velocity extrapolated from interior faces | Outlet left free; on 1D `ads`/`startup` with the one-way outlet, set by the check-valve law ([One-way outlet](#one-way-outlet-on-adsorption-schema-11-320)) |
+| `blow`, `heat`, `w_purge`, `w_des` | Inlet velocity forced to zero | Outlet left free; with the vacuum pump, set by the pump law (§2.7) |
 | `cool` | Inlet velocity forced to zero | Outlet velocity forced to zero |
-| `press` | Inlet velocity comes directly from the selected pressure law + Robin pressure BC | Outlet velocity forced to zero |
+| `press` | Inlet velocity comes directly from the selected pressure law + Robin pressure BC; with the 1D feed blower, set by the blower law (§4.10) | Outlet velocity forced to zero |
 
 The radial velocity is zero everywhere in 1D. In 2D it is recovered in the
 interior and set to zero at the centerline and at the impermeable wall, in every
@@ -154,7 +180,112 @@ step.
 |------|-------|--------------------------|
 | Fixed-feed flux | `startup`, `ads`, `s_purge`, `s_des` | Inlet fluxes are computed once from the prescribed feed state and inlet flow input; in 2D the total may be distributed over the radial rings with area-normalized weights |
 | Closed inlet | `blow`, `heat`, `w_purge`, `w_des`, `cool` | With the built-in zero flow the inlet fluxes are zero; the inlet velocity is clamped to zero by step |
-| Pressure-driven inlet | `press` | Inlet fluxes are rebuilt every RHS call from the current, pressure-derived local inlet velocity; no ring weights are imposed |
+| Pressure-driven inlet | `press` with valve | Inlet fluxes are rebuilt every RHS call from the current pressure-derived inlet velocity |
+| Capacity-limited supply | 1D `press` with feed blower | Same flux rebuild from the supply law; metadata `inlet_flux_source = "feed_blower"` |
+
+### 2.7 Vacuum pump outlet (1D, opt-in)
+
+A vacuum-connected step (`blow`, `heat`, `w_purge`, `w_des`) has two outlet modes,
+`flow.vacuum_outlet_model`:
+
+| Mode | Physical picture | Outlet law | Vacuum energy |
+|---|---|---|---|
+| `"valve"` (default) | a throttling valve into a vacuum reservoir held at `p_out`, which can take any flow | the Robin relation of §2.3; `p_out` is reached asymptotically | isentropic work on the removed gas at the bed pressure (manual 06 §8.2) |
+| `"vacuum_pump"` (opt-in, 1D) | a pump of finite speed with pressure control at the setpoint `P_set = p_out` | the law below | the same, plus the standby power $P_{idle}(1-g)$ |
+
+This section is about the second. The fields are described in
+[01 — Inputs §4.2](01_inputs.md#42-a-step-ten-names-seven-groups-fixed-order); the law is in
+[`core/vacuum_manifold.py`](../../src/pydac/core/vacuum_manifold.py), its energy in
+[06 — Post-processing §8.2](06_post_processing.md#82-vacuum-pump-work), and the tests are
+[`tests/test_vacuum_manifold.py`](../../tests/test_vacuum_manifold.py) (law) and
+[`tests/test_vacuum_pump_idle_power.py`](../../tests/test_vacuum_pump_idle_power.py) (energy).
+
+The outlet superficial velocity on the last axial face is
+
+$$u_{out} = \frac{S(p)}{A}\, g(x), \qquad S(p) = S_0\left(1 - \frac{p_{ult}}{p}\right), \qquad x = \frac{p - P_{set}}{\delta}, \quad \delta = \text{band}\cdot P_{set}$$
+
+with $p$ the pressure of the last cell, $S_0$ = `vacuum_pump_speed_m3_s`, $p_{ult}$ =
+`vacuum_pump_ultimate_pressure_Pa` (null is 0), band = `vacuum_setpoint_band_fraction` (null
+is `1e-3`) and $A$ the cross-section. The control's throughput fraction $g$ is a C1 smoothstep: $g = 0$ for
+$x \le 0$, $3x^2 - 2x^3$ in between, $1$ for $x \ge 1$. So:
+
+- above $P_{set} + \delta$ the pump draws at full speed, at most $S_0/A$;
+- inside the band $[P_{set}, P_{set} + \delta]$ the control throttles;
+- at and below $P_{set}$ it is closed. The pump never supplies gas, so cooling or adsorption
+  can still move the bed pressure below the setpoint.
+
+The law states two things: at full opening the pump removes gas at its speed at the bed
+pressure, $S(p)$, and a control reduces the removal to hold $P_{set}$. It does not say how
+the control does it, and in this averaged description the bed cannot tell:
+
+| How the control realises $g$ | Pump inlet pressure while removing |
+|---|---|
+| on/off with an isolation valve: the pump runs a fraction $g$ of the time | $p$ |
+| variable-speed drive: the speed is turned down to $g\,S(p)$ | $p$ |
+| a valve throttles a fixed-speed pump that keeps running | $p_s = p_{ult} + g\,(p - p_{ult})$ |
+
+The removal is the same, $S_0 (p - p_{ult})\, g / (RT)$ for an ideal gas at one temperature and
+no line storage. So $g$ is a throughput fraction, not a calibrated valve opening. It is a
+smooth, averaged closure: a real relay switches with a finite period and ripples the
+pressure, which the law does not resolve. The realisation matters only for the energy,
+through the idle mode below.
+
+What it means for a step:
+
+- **Finite capacity.** A bed that releases gas faster than $S_0$ can take stays above the band
+  (heating under vacuum, for example). A `blow` reaches the setpoint later than with the valve
+  and, being capacity-limited, can extract less CO₂; as $S_0$ grows the result tends to the
+  ideal valve (`blowdown_valve_conductance` very large).
+- **Approach to the setpoint.** Without gas release the bed approaches $P_{set}$ algebraically,
+  not exponentially ($g \approx 3x^2$ near the setpoint), and the last cell, not the outlet
+  face, is held at it.
+- **Reopening.** A closed control reopens when heating pushes the pressure back over
+  $P_{set}$. The band acts on a millisecond time scale while CVODE may be taking steps of tens of
+  seconds, so its first attempt can land on an impossible state; §1.4 rejects it and the step
+  continues.
+- **Outlet face.** With the pump, the drag-law inversion on the outlet face uses the last cell's
+  density instead of the extrapolated face density (which turns negative at very high speed).
+  The value is overwritten by the pump law anyway. Post-processing rebuilds the outlet velocity
+  with the same law, so at each saved instant it equals the solver's. Dry closed-inlet product
+  uses the signed bed inventory loss; integrated scalar states remain mass-balance diagnostics.
+  An integral of saved samples needs output refinement (`grid.output_schedule` or `grid.nt`).
+- **Vacuum energy.** The pump's electric power is
+
+  $$P_{vac} = \frac{\dot n_{out}\, w_s(p \to p_{amb})}{\eta(p)} + P_{idle}\,(1 - g)$$
+
+  The first term is the formula used with the valve (manual 06 §8.2): the isentropic work on
+  the removed gas from the bed pressure to ambient, with the efficiency of Maruyama et al.
+  (2020) at the bed pressure. For on/off operation it is the exact time average (on a fraction
+  $g$ of the time at full load), if the switching is fast compared with the bed. For a
+  variable-speed drive it also assumes that the efficiency does not depend on the speed, which
+  is an extra assumption: a pump at reduced speed can be less efficient. A drive at its minimum
+  speed may also still remove more than the bed releases, and then needs on/off cycling too.
+  The second term is the standby power while the control throttles, set by
+  `vacuum_pump_idle_mode`:
+
+  | Idle mode | Plant | $P_{idle}$ = `vacuum_pump_idle_power_W` |
+  |---|---|---|
+  | `"off"` (default) | on/off with an isolation valve, the pump off while the setpoint holds | 0 (the field must stay null) |
+  | `"minimum_speed"` | variable-speed drive at its minimum speed | vendor's absorbed power at minimum speed |
+  | `"fixed_speed"` | fixed-speed pump running against the closed control valve | vendor's absorbed power at the ultimate pressure |
+
+  The weight $1 - g$ does not count the pump twice: at $g = 1$ the first term is already its
+  whole power at full load, at $g = 0$ only $P_{idle}$ remains. Between the two ends it is an
+  interpolation, exact for on/off and approximate for the other two plants, whose real
+  part-load power curve it does not resolve. It can dominate: in a heating step held at the
+  setpoint $g$ is a few 1e-3, so a 2 kW standby power over 1800 s adds 3.6 MJ against a few kJ
+  of isentropic work. A `blow` gets a much smaller absolute increment, because $g = 1$ for most
+  of it, but not a negligible one: on the 13X test chain (pump 150 m3/h, 10 kPa) 2 kW add
+  16 kJ to its 88 kJ, about 19 %. Start/stop transients, the line volume and the line losses
+  at full opening are not modelled. With a positive $P_{idle}$ the
+  energy is a larger state in CVODE's error norm, so the profiles move at the solver tolerance
+  (about 3e-7) compared with `"off"`.
+- **Pressure events.** A pressure target that is "below" and lies at or under the band's upper
+  edge $P_{set} + \delta$ may not be reached: the flow throttles above $P_{set}$ and stops at
+  or below it. Without cooling or adsorption the step then ends on the plateau (`blow`) or at
+  `event_max_time_s`, and with the pump the plateau stop instant is ill-conditioned: it moves by about 1e-3 with the
+  tolerances, against 1e-5 with the valve, while the masses and the energy agree to 3e-6. Put
+  the target above the band, e.g. `p_out` + 0.5 %; validation warns otherwise (§3.2).
 
 ---
 
@@ -255,6 +386,18 @@ It refuses every plateau field on a step that never reads it: the switch and the
 tolerance off `blow` and `press`, `pressure_plateau_arm_above_Pa` on `blow`,
 `pressure_plateau_arm_below_Pa` on `press`.
 
+With the vacuum pump (§2.7) the plateau must not be the intended stop. The pressure control holds the
+outlet inside the throttle band, where the descent rate crosses the tolerance at a shallow
+angle, so the stop instant is sensitive to the solver tolerances. Validation
+(`target_inside_band_warning`, called from `config/model_validation.py`) warns when a pump
+step that may run in event mode stops on `max_internal_pressure`, `avg_outlet_pressure` or
+`min_internal_pressure` going below a target of at most $P_{set} + \delta$ (target = `p_out`,
+`p_feed` or the value, plus the offset). The mode is the step's own `termination.mode` unless
+an execution override sets one: the global `execution.termination_mode`, then a cycle's
+(`execution.cycle_options`, only cycles a CSS run reaches: from `resume_from_cycle`, default 1,
+to `max_cycles`), then a step's (`step_options`). Solve flags, restarts and replays are not
+resolved, so a step that is never solved can still be warned about.
+
 ### 3.3 Event stop rules
 
 Values below are the shipped defaults from
@@ -350,7 +493,9 @@ Implementation summary:
 - No inlet feed: `vol_flowrate = 0`.
 - Inlet is hydraulically closed.
 - Outlet uses a finite valve conductance: `alpha_bd = 0.01 1/m`
-  (`steps.blow.flow.blowdown_valve_conductance`).
+  (`steps.blow.flow.blowdown_valve_conductance`). With
+  `flow.vacuum_outlet_model = "vacuum_pump"` (1D) a pump of finite speed replaces the valve and
+  `alpha_bd` is not read; keep the pressure target above the throttle band (§2.7).
 - Built-in outlet pressure `20000 Pa` (`steps.blow.pressure.outlet_pressure_Pa`;
   the campaign knob `low_pressure_Pa` sets it with the other low-pressure steps,
   [01 — Inputs §8.1](01_inputs.md#81-operating-knobs-and-their-fan-out)).
@@ -377,7 +522,9 @@ Implementation summary:
 - Hot jacket at `373.15 K`.
 - Built-in outlet and feed pressures both `20000 Pa`; the campaign knob
   `low_pressure_Pa` sets them together with the other low-pressure steps.
-- `alpha_bd = inf`, so the outlet pressure relation behaves as a direct vacuum boundary.
+- `alpha_bd = inf`, so the outlet pressure relation behaves as a direct vacuum boundary. With
+  the vacuum pump (§2.7) the outlet is capacity-limited instead: while the bed releases gas
+  faster than the pump takes it, the pressure rises above `p_out`.
 - Built-in mode is time. In event mode, heating ends when the minimum bed
   temperature reaches the steam condensation temperature `T_cond` on ascent. The
   threshold offset is `0`, so there is no extra margin on top of it.
@@ -397,7 +544,7 @@ Implementation summary:
 - It uses the same composition, zero inlet flow, thermal conditions and pressure
   conditions as `heat`, with shorter horizons: nominal `900 s`, maximum `9000 s`.
 - The hot jacket is held at `373.15 K`; the inlet is closed and the outlet
-  remains tied to the low-pressure boundary.
+  remains tied to the low-pressure boundary (or drawn by the vacuum pump, §2.7).
 - Unlike `heat`, it is event-driven by
   `max_bed_oxygen_mole_fraction < 1e-7` (0.1 ppmmol).
 - If the oxygen event ends the step, every bed cell meets the target at that
@@ -454,7 +601,8 @@ Implementation summary:
 - No inlet flow.
 - Hot jacket at `373.15 K`.
 - Outlet remains tied to the vacuum target.
-- `alpha_bd = inf`, so the outlet behaves effectively as a direct vacuum boundary.
+- `alpha_bd = inf`, so the outlet behaves effectively as a direct vacuum boundary; with the
+  vacuum pump (§2.7) it is capacity-limited instead.
 - Event stop rule: average bed CO2 loading fraction drops below `0.05`.
 
 Compared with `heat`:
@@ -505,12 +653,52 @@ false; the step does not pre-flatten the state or replace it with uniform pressu
 Internal axial/radial redistribution is resolved by the partial differential equation (PDE) system under sealed boundaries.
 By default the step is event-driven: it ends when `max_bed_temperature` goes below
 `323.15 K`, with a maximum horizon of `10800 s`. In time mode it runs for
-`steps.cool.horizon.nominal_time_s` (`9000 s`).
+`steps.cool.horizon.nominal_time_s` (`9000 s`), unless the low-pressure floor (§3.3) ends it
+sooner.
 
 
 ### 4.10 Pressurization (`press`)
 
-**Purpose:** raise the bed pressure back to atmospheric conditions.
+**Purpose:** raise the bed pressure toward the step's feed/header pressure.
+
+Optional supply (`flow.press_inlet_model = "feed_blower"`, schema 11, 3.2.0):
+
+```text
+P_set = p_feed; delta = band * P_set; p = pressure of first axial cell
+x = (P_set - p) / delta
+ g(x) = 0                  x <= 0
+      = 3*x*x - 2*x*x*x    0 < x < 1
+      = 1                  x >= 1
+u_supply = (Q_max / A) * g(x)
+n_dot_in = Q_max * g(x) * p_feed / (R * T_feed)
+```
+
+The supply shuts at/above the setpoint without backflow. The band defaults to
+`1e-3`; `Q_max` is `feed_blower_flow_m3_s` at this press step's feed conditions.
+Header-referred velocity is capped; local bed velocity for the same molar flow
+scales as `u_supply * (p_feed/p_bed) * (T_bed/T_feed)`. Internal velocities and
+pressure gradients must be inspected before making hydrodynamic safety claims.
+Closure does not prevent pressure rises from heating, desorption or redistribution.
+
+For an inert isothermal bed with full opening, **volume-average** pressure rises at
+`Q_max*p_feed/(eps_total*V_bed)`. A lumped fill-time estimate approximates a
+minimum-pressure event only when gradients are small. As capacity grows, a positive
+bounded gas demand gives first-cell error approximately
+`delta * sqrt(n_required/(3*n_max))`, with `n_max=Q_max*p_feed/(R*T_feed)`.
+It does not pin overpressured or net gas-generating beds. First-cell control differs
+from an ideal valve's face Dirichlet condition at finite mesh spacing.
+The largest lumped relaxation rate is `1.5*Q_max*p_feed/(eps_total*V_bed*delta)`;
+use the first-cell volume for the local scale. The derivative vanishes at the exact
+setpoint. Small bands/high capacity can be stiff; smoothness does not ensure positivity
+or cheap integration.
+
+The unchanged primary event reads **min p over the bed**; a 1% offset below feed
+pressure does not prove `g=1`. Record `p_first`, `min p`, `x_first` and `g` at each
+stop. Validation warns when an effective ascending pressure target is at or above
+the band's lower edge (including above setpoint), honoring threshold source/value,
+offset and executed event modes. The existing plateau fallback remains; sufficiently
+small capacity can trigger it before target. Disable it explicitly only after checking
+that the blower reaches the target. The following summary describes the default valve.
 
 Implementation summary:
 
@@ -538,7 +726,7 @@ Pressure-driven coupling sequence:
 Important note:
 
 - `vol_flowrate = 1e-3 m3/s` is only a dummy value for property correlations in this step
-- the actual inlet transport rate is pressure-driven
+- the actual inlet transport rate follows the selected inlet law; the blower does not rescale property correlations
 
 ---
 
@@ -556,3 +744,17 @@ Important note:
   event implementation itself, use the supervised core workflow if the change
   touches `src/pydac/core/column_model.py` or `src/pydac/post_processing/`.
 - `cool` preserves its inherited state and solves redistribution with sealed boundaries.
+
+
+## One-way outlet on adsorption (schema 11, 3.2.0)
+
+On 1D ads/startup an optional `flow.ads_outlet_overpressure_Pa = delta_p` replaces the
+outlet-face velocity with `u_out = K max(p_last - p_out, 0)`, where `K=(Q_feed/A)/delta_p`
+in m/(s Pa). This check valve closes below the outlet pressure; no inflow reservoir is required.
+The pressure rise calibrates superficial velocity at the bed, not a compressible mass-flow capacity.
+Null retains the Dirichlet outlet. RHS, saved outlet replay and reconstructed profiles use the same law.
+Metadata saves version, K, delta_p, outlet/reference pressures and nominal feed velocity.
+The linear law is continuous with a derivative kink at opening. A step with the valve runs CVODE BDF
+up to order 2 (A-stable): at order 3 the valve adds a fast mode that can cap the step size (one
+qualification case took 50 times more RHS evaluations). Steps without the valve keep order 3, so
+leaving the field null changes neither the outlet nor the solver settings.

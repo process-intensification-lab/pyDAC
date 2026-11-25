@@ -35,6 +35,7 @@ from pydac.utils.postprocessing.saved_solution import (
     SAVED_SOLUTION_SCHEMA_VERSION,
 )
 from pydac.core.outlet_reporting import outlet_face_history
+from pydac.utils.output_schedule import SCHEDULE_DEFAULTS, schedule_from_spec
 from pydac.utils.paths import display_path
 from pydac.utils.provenance import new_record, save_record, source_record
 
@@ -102,6 +103,16 @@ class Solver:
         # The model RHS still reads this attribute for progress reporting.
         self.model.nondim_horizon = self.nondim_horizon
         self.t_eval = np.linspace(0.0, self.nondim_horizon, model.Nt)
+        spec = getattr(model, "output_schedule_spec", SCHEDULE_DEFAULTS)
+        self.output_schedule = schedule_from_spec(spec, self.t_end, model.Nt, self.tau_hyd)
+        if self.output_schedule is not None:
+            requested = self.output_schedule.resolve(self.t_end) / self.tau_hyd
+            # Preserve the exact legacy nondimensional backbone, even where
+            # conversion to seconds and back changes its last bit.
+            backbone_s = self.t_eval * self.tau_hyd
+            backbone_s[-1] = self.t_end
+            requested[np.searchsorted(self.output_schedule.resolve(self.t_end), backbone_s)] = self.t_eval
+            self.t_eval = np.unique(requested)
 
     def _cache_grid_data(self, model):
         """Cache grid dimensions and geometry needed during integration."""
@@ -131,6 +142,8 @@ class Solver:
         # PDE and initial condition interfaces
         self.get_initial_state = model.get_initial_state
         self.pde_system = model.pde_system_kpis
+        self.rhs_rejections = 0
+        self.first_rhs_rejection = None
 
         # Sparsity computation and events 
         self.sparsity_ticks_done = set()   # empty set at start
@@ -186,7 +199,27 @@ class Solver:
         ydot : np.ndarray
             Output array to be filled with time derivatives.
         """
-        self.pde_system(t, y, out=ydot)
+        try:
+            self.pde_system(t, y, out=ydot)
+        except ValueError as exc:
+            # S1: a Newton trial state the solver itself proposed can be
+            # physically impossible (negative pressure or concentration). Returning
+            # NaN makes CVODE reject that attempt and retry with a smaller step; a
+            # successful solve whose output is not finite is marked failed (below).
+            # A ValueError at a physical state is a genuine error and is raised as before.
+            if self._state_is_physical(y):
+                raise
+            if self.rhs_rejections >= self.MAX_RHS_REJECTIONS:
+                raise ValueError(
+                    f"{self.rhs_rejections} RHS evaluations at non-physical trial states were "
+                    f"rejected in step '{self.step}', the cap of one solve (first at "
+                    f"t = {self.first_rhs_rejection[0]:.6g} s: {self.first_rhs_rejection[1]})."
+                ) from exc
+            self.rhs_rejections += 1
+            if self.first_rhs_rejection is None:
+                self.first_rhs_rejection = (float(t) * self.tau_hyd, f"{type(exc).__name__}: {exc}")
+            ydot[:] = np.nan
+            return
 
         if self.compute_numerical_sparsity:
             tick = int(100 * t / self.nondim_horizon)   # coarse binning
@@ -213,6 +246,28 @@ class Solver:
                 )
 
                 print(f"Sparsity snapshot saved with shape {J_fd.shape}")
+
+    #: S1: rejected non-physical trial states allowed per solve (cumulative) before giving up.
+    MAX_RHS_REJECTIONS = 1000
+
+    def _state_is_physical(self, y):
+        """True unless a total/species concentration or temperature is non-positive or not finite."""
+        if not np.all(np.isfinite(y)):
+            return False
+        layout = self.state_layout
+        c_tot = y[layout.field("c_tot").state_slice]
+        if np.any(c_tot <= 0.0) or np.any(y[layout.field("T_bed").state_slice] <= 0.0) \
+                or np.any(y[layout.field("T_wall").state_slice] <= 0.0):
+            return False
+        independent = np.zeros_like(c_tot)
+        for field in layout.fields:
+            if field.kind == "gas concentration":
+                c = y[field.state_slice] * self.state_scale_by_field[field.name]
+                if np.any(c < 0.0):
+                    return False
+                independent += c
+        # The closure species is what remains of c_tot.
+        return bool(np.all(c_tot * self.state_scale_by_field["c_tot"] - independent >= 0.0))
 
     def _find_initial_event(self, Y0):
         """Return the first primary event already satisfied by ``Y0``."""
@@ -307,6 +362,46 @@ class Solver:
             },
         }
 
+    def _fail_nonfinite_output(self):
+        """Mark a successful ``self.sol`` failed when any saved array is not finite.
+
+        A NaN or Inf must never reach a successful output: S1 may have rejected
+        trial states, and the initial-event path copies Y0 without integrating.
+        CVODE and the termination summary are both marked failed, so reports agree.
+        Returns True when the solve was marked failed here.
+        """
+        cvode = self.sol.get("cvode")
+        if not isinstance(cvode, dict) or not cvode.get("success", False):
+            return False
+        bad = []
+        for name in ("t", "y", "t_events", "y_events"):
+            values = self.sol.get(name)
+            if values is None:
+                continue
+            try:
+                array = np.asarray(values, dtype=float)
+            except (TypeError, ValueError):
+                # Ragged event lists: check each entry.
+                array = np.concatenate([np.ravel(np.asarray(v, dtype=float)) for v in values])
+            if array.size and not np.all(np.isfinite(array)):
+                bad.append(name)
+        if not bad:
+            return False
+        rejected = (
+            f" after {self.rhs_rejections} rejected RHS evaluations" if self.rhs_rejections else ""
+        )
+        message = (
+            f"The solve reported success{rejected}, but the saved {', '.join(bad)} "
+            "is not finite; the step is marked failed."
+        )
+        cvode.update(success=False, status="nonfinite_output", message=message)
+        termination = self.sol.get("termination")
+        if isinstance(termination, dict):
+            termination.update(
+                reason="nonfinite_output", success=False, status="nonfinite_output", message=message
+            )
+        return True
+
     def _handle_initial_event(self, Y0):
         """Store and report an initial event, returning whether solving is skipped."""
         initial_event = self._find_initial_event(Y0)
@@ -332,6 +427,9 @@ class Solver:
             horizon_source = "t_end_max" if self.t_end_max is not None else "t_end"
             print(f"Event-mode maximum time ({horizon_source}) : {self.t_end:.2f} s")
         
+        # S1 counts per solve, also when an initial event skips CVODE.
+        self.rhs_rejections = 0
+        self.first_rhs_rejection = None
         Y0 = self._initial_state()
 
         from pydac.config.serialization import to_jsonable
@@ -351,6 +449,8 @@ class Solver:
         save_record(os.path.join(self.base_folder, self.step), self.solve_provenance)
 
         if self.event_specs and self._handle_initial_event(Y0):
+            if self._fail_nonfinite_output():
+                print(f"[solver] {self.sol['cvode']['message']}")
             self.sol["solve_provenance"] = self.solve_provenance
             return
 
@@ -363,7 +463,9 @@ class Solver:
             "rtol": self.rtol,
             "atol": atol_array,
             "method": "BDF",
-            "max_order": 3,
+            # BDF above order 2 is not A-stable; the one-way ads outlet adds a fast mode that
+            # caps its step (anchor 17 nz400: 149k RHS at order 3, 3k at order 2).
+            "max_order": 2 if getattr(self.model, "ads_outlet_valve", None) is not None else 3,
             "max_num_steps": 100000,
             "max_nonlin_iters": 25,
             "max_conv_fails": 50,
@@ -449,7 +551,14 @@ class Solver:
             "i_events": sol_raw.i_events,
             "termination": termination_summary,
         }
+        if self.rhs_rejections:
+            # Only present when S1 acted, so a run it never touched saves exactly as before.
+            self.sol["cvode"]["rhs_rejections"] = self.rhs_rejections
+            self.sol["cvode"]["first_rhs_rejection"] = self.first_rhs_rejection
+            print(f"[solver] {self.rhs_rejections} RHS evaluations at non-physical trial states rejected "
+                  f"(first at t = {self.first_rhs_rejection[0]:.6g} s: {self.first_rhs_rejection[1]}).")
 
+        self._fail_nonfinite_output()
         self.sol["solve_provenance"] = self.solve_provenance
         report_solve_outcome(
             sol_raw,
@@ -678,6 +787,12 @@ class Solver:
             "pressure_drop": pressure_drop_metadata_from_model(self.model),
             "state_layout": self.state_layout.to_dict(),
         }
+        if self.output_schedule is not None:
+            self.sol["extra"]["output_schedule"] = {
+                "version": self.output_schedule.version,
+                "spec": dict(self.model.output_schedule_spec), "requested_count": len(self.t_eval)}
+        if getattr(self.model, "ads_outlet_valve", None) is not None:
+            self.sol["extra"]["ads_outlet_valve"] = self.model.ads_outlet_valve.to_dict()
         self.sol[SAVED_SOLUTION_SCHEMA_KEY] = SAVED_SOLUTION_SCHEMA_VERSION
 
         # The split arrays above are views of this allocation. Removing the public

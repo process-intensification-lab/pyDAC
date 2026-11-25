@@ -15,7 +15,7 @@ def default_profile() -> dict[str, Any]:
     """Return one complete, fresh reference experiment document."""
     column_sections = column.column_defaults()
     return {
-        "schema_version": 8,
+        "schema_version": 11,
         "simulation": {
             "grid": solver.grid_defaults(),
             "solver": solver.solver_defaults(),

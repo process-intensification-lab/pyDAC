@@ -116,7 +116,8 @@ checks. Loading an NSGA-II front/population records a separate analysis activity
 and hashes of those NPZ files. That record identifies the loaded data; it does not
 archive subsequent plot/export options or every generated figure.
 
-After each cycle step, the solver writes a dimensional `sol.pkl`. The
+After each solved step of a full run, the solver writes a dimensional `sol.pkl` (an NSGA-II
+candidate with compact persistence keeps only the terminal state, `terminal.pkl`). The
 post-processing layer then performs these operations:
 
 1. Reconstruct physical fields and auxiliary profiles for one step.
@@ -139,7 +140,7 @@ The pure cycle-level calculation path starts from the two public names
 ```python
 import pydac
 
-cycle_data = pydac.CycleDataLoader("simulation_results/cyclic_mode/packed_bed_7a4930a5").load()
+cycle_data = pydac.CycleDataLoader("simulation_results/cyclic_mode/packed_bed_d3aac08f").load()
 cycle_kpis = pydac.CycleKPIs(cycle_data)
 ```
 
@@ -188,7 +189,7 @@ The two layers have different roles:
 | Pure cycle calculations | `post_processing/kpi/cycle_kpis.py` | Calculate mass, product, and energy KPIs from the validated `CycleData` bundle |
 | KPI reporting | `post_processing/kpi/reporting.py` | Assemble summary values and tables, format text, and persist comma-separated values (CSV), JSON and TXT outputs |
 | KPI plotting | `post_processing/kpi/plotting.py` | Plot mass changes, residual gas, and energy breakdowns from `CycleKPIs` |
-| Step profile plotting | `post_processing/profiles/step_plotting.py` | Plot one step's outlet traces and internal profiles, only with `execution.plot_profiles` (§19) |
+| Step profile plotting | `post_processing/profiles/step_plotting.py` | Plot one step's outlet traces and internal profiles: during the run with `execution.plot_profiles` (§19), or again from a saved cycle with `report(..., snapshot_times=...)` |
 | Transient CSS plotting | `post_processing/profiles/cyclic_plotting.py` | Plot saved full-cycle fields and outlet profiles from step solutions |
 | Typed access utilities | `utils/postprocessing/` | Normalize species/basis aliases and query stable metric identities |
 
@@ -269,7 +270,7 @@ The solver state is split into dimensional storage groups before it is saved:
     "y_scalars": np.array, # (n_scalar_states, Nt)
     "extra": {
         "state_layout": {...}, # schema, names, shapes, units, offsets, signature
-        ...                     # grid and geometry metadata
+        # ... grid and geometry metadata
     },
 }
 ```
@@ -440,6 +441,9 @@ legacy fallback, not a substitute for the native vector outlet observations.
 Condenser processing checks finite species and total flows before applying a mask.
 A small initial inward sample is tolerated only at t=0 within the defined relative
 threshold; later inward flow is rejected. Streamless samples remain on the time axis.
+A denser output schedule can catch a brief outlet reflux that coarser saved outputs
+miss; condenser reporting then refuses the run, because the product-line model does
+not describe reflux.
 
 ---
 
@@ -576,8 +580,9 @@ $$
 
 The current `_get_flowrates()` implementation uses the signed outlet velocity.
 For product/separator calculations the outlet stream of every collected step
-(`outlet.collect_product`, §9) is used; a net inward stream after $t = 0$ is
-refused.
+(`outlet.collect_product`, §9) is used. With H2O in the mixture, a net inward stream after
+$t = 0$ is refused (the product-line flash needs an outward stream); a dry product skips this
+check and integrates the signed outlet flow.
 
 ---
 
@@ -607,11 +612,11 @@ P_{\mathrm{comp}}
 =
 \frac{1}{\eta_{\mathrm{comp}}}
 \frac{\gamma}{\gamma-1}
-p_{\mathrm{in}}Q_{\mathrm{in}}
-\left[
+p_{\mathrm{in}}\max(Q_{\mathrm{in}},0)
+\max\left(0,\left[
 \left(\frac{p_{\mathrm{in}}}{p_{\mathrm{out}}}\right)^{(\gamma-1)/\gamma}
 -1
-\right].
+\right]\right).
 $$
 
 In the code:
@@ -627,6 +632,30 @@ $$
 Q_{\mathrm{in}} = \sum_r u_{\mathrm{in},r} A_r.
 $$
 
+For `press` with `feed_blower`, the integrated compression scalar instead charges
+ambient-to-header supply work, with the existing constant-gamma isentropic estimate
+and efficiency 0.7:
+
+```text
+C = gamma / (0.7 * (gamma - 1)); a = (gamma - 1) / gamma
+P_supply = C * p_feed * Q_feed * (max(1, p_feed/p_amb)**a - 1)
+Q_feed = A * u_supply
+```
+
+Suction gas is assumed to be at `T_feed`, so `p_feed*Q_feed = n_dot*R*T_feed`.
+For another suction temperature, a factor `T_s/T_feed` would be needed. At or below
+ambient pressure, or at zero supply flow, shaft work is zero. There is no recovered
+expansion work, standby/line-loss power, or compressor heating/aftercooling model.
+This idealized supply estimate leaves vacuum pressures/work unchanged. The existing
+valve expression above is retained as an **axial pressure-drop work proxy**, not a
+passive valve's shaft work. Schema 11 clamps its net flow and pressure-ratio bracket
+separately to prevent expansion credits. Existing energy tables read the integrated scalar directly.
+
+Saved blower profiles reconstruct the same inlet law from the first-cell pressure,
+with face density guarded as in the RHS. Legacy models lacking `feed_blower` retain
+their prior behavior. The display cutoff remains `abs(u)<1e-8 m/s`; compare public
+profiles with that absolute allowance near closure (otherwise rtol `1e-10`).
+
 ### 8.2 Vacuum pump work
 
 The vacuum pump is modeled with the same polytropic structure, discharging to
@@ -637,23 +666,25 @@ P_{\mathrm{vac}}
 =
 \frac{1}{\eta_{\mathrm{vac}}}
 \frac{\gamma}{\gamma-1}
-p_{\mathrm{out}}Q_{\mathrm{out}}
-\left[
+p_{\mathrm{out}}\max(Q_{\mathrm{out}},0)
+\max\left(0,\left[
 \left(\frac{p_{\mathrm{amb}}}{p_{\mathrm{out}}}\right)^{(\gamma-1)/\gamma}
 -1
-\right].
+\right]\right).
 $$
 
-The vacuum pump efficiency is pressure-dependent:
+The vacuum pump efficiency is pressure-dependent, the correlation of Maruyama et al.
+(2020, Eq. 10) evaluated at the outlet (bed-side) pressure:
 
 $$
 \eta_{\mathrm{vac}}
 =
 \frac{
-0.8 \, 19.55 \, (p_{\mathrm{out}}/10^5)
+0.8 \, 19.55 \, (p_{\mathrm{out}}/p_{\mathrm{atm}})
 }{
-1 + 19.55 \, (p_{\mathrm{out}}/10^5)
-}.
+1 + 19.55 \, (p_{\mathrm{out}}/p_{\mathrm{atm}})
+},
+\qquad p_{\mathrm{atm}} = 101325\ \mathrm{Pa}.
 $$
 
 The outlet volumetric flowrate is:
@@ -661,6 +692,39 @@ The outlet volumetric flowrate is:
 $$
 Q_{\mathrm{out}} = \sum_r u_{\mathrm{out},r} A_r.
 $$
+
+With the vacuum pump outlet (`flow.vacuum_outlet_model = "vacuum_pump"`, manual 05 §2.7)
+a standby term is added while the pressure control throttles:
+
+$$
+P_{\mathrm{vac}} \leftarrow P_{\mathrm{vac}} + P_{\mathrm{idle}}\,(1-g),
+$$
+
+with $g$ the control's throughput fraction and $P_{\mathrm{idle}}$ =
+`flow.vacuum_pump_idle_power_W`, which is 0 in the default idle mode `"off"`.
+At $g = 1$ the pump is at full load and the first term is its whole power; at $g = 0$
+it removes nothing and draws $P_{\mathrm{idle}}$. With the valve outlet there is no
+standby term.
+
+The authors built it from a group of vacuum-pump performance curves and call it "not a
+rigorous expression, but one that approximately describes the overall trend": constant
+near 80 % at moderate vacuum, falling sharply below about 0.1 atm. The data behind it
+(Fig. S4 of their Supporting Information) come from the performance charts of several pumps,
+mostly liquid-ring and rotary-vane pumps; for another technology, such as a dry screw pump,
+it is an approximation, and the vendor's own curve is better. They use it between 0.01
+and 1 atm (1 to 101 kPa). pyDAC evaluates the formula without clipping, so a pressure outside
+that range (a setpoint below 1 kPa, for example) extrapolates the correlation. The paper
+charges $\eta$ to an electrical energy equivalent (kWh$_e$, its Eqs. 3-5), with the same
+structure as above: the pressure at the column end, the volumetric flow at that pressure and
+discharge at 1 atm. So $\eta$ is used as an overall, wire-to-gas efficiency; the paper does not
+say whether the surveyed charts gave electric or shaft power. The pressure is in atm, as in
+the paper; pyDAC 3.1.0 divided it by $10^5$ Pa, which gave an $\eta$ higher by 0.45 % at 10 kPa
+and 1.1 % at 1 kPa (vacuum energies lower by the same).
+
+Reference: R. T. Maruyama, K. N. Pai, S. G. Subraveti, A. Rajendran, *Improving the
+performance of vacuum swing adsorption based CO2 capture under reduced recovery
+requirements*, Int. J. Greenhouse Gas Control 93 (2020) 102902,
+https://doi.org/10.1016/j.ijggc.2019.102902.
 
 ### 8.3 Jacket energy
 
@@ -707,7 +771,9 @@ steam use.
 
 O2 and N2 are not included in the binary flash calculation. In the desorption
 KPI table they are treated as non-condensing gases and their recovered mass is
-approximated by the absolute bed mass loss over that collected step.
+approximated by the absolute bed mass loss for wet separator streams. For dry
+closed-inlet blow/heat/w_purge/w_des, CO2 and all inerts instead use the signed
+negative state inventory change; Simpson and accumulator amounts are diagnostics.
 
 ### 9.1 Condenser flash
 
@@ -738,8 +804,48 @@ p_{\mathrm{cond}}(t)
 \frac{\sum_r p_{L,r}(t)A_r}{\sum_r A_r}.
 $$
 
-The binary flash separator returns vapor flow $n_v$ and vapor composition
-$y_i$. The reported mass after condenser is:
+The binary flash separator (`core/thermodynamics_separators.py`, `FlashSeparator.solve`) evaluates
+the CO2/H2O equilibrium at $(T_{\mathrm{cond}}, p_{\mathrm{cond}})$. It uses Henry's law for CO2
+and Raoult's law for H2O, with pure-component Redlich-Kwong fugacity coefficients evaluated at that
+temperature and total pressure. This is not a mixture-EOS calculation. The resulting
+composition-independent K-values are
+
+$$
+K_{\mathrm{CO2}} = \frac{H_{\mathrm{CO2}}(T)}{p\,\phi_{\mathrm{CO2}}},
+\qquad
+K_{\mathrm{H2O}} = \frac{p_{\mathrm{sat,H2O}}(T)}{p\,\phi_{\mathrm{H2O}}},
+$$
+
+so the phase region follows from the feed alone (Rachford-Rice with constant K):
+
+- $\sum_i z_i K_i \le 1$: at or below the bubble point, one liquid phase holds the whole feed,
+  CO2 included ($n_v = 0$, $x = z$);
+- $\sum_i z_i / K_i \le 1$: at or above the dew point, one vapor phase, nothing condenses
+  ($n_v = n_{\mathrm{feed}}$, $y = z$);
+- otherwise two phases, on the tie line
+  $x^{\mathrm{eq}}_{\mathrm{CO2}} = (1 - K_{\mathrm{H2O}})/(K_{\mathrm{CO2}} - K_{\mathrm{H2O}})$,
+  $y^{\mathrm{eq}}_{\mathrm{CO2}} = K_{\mathrm{CO2}}\,x^{\mathrm{eq}}_{\mathrm{CO2}}$, split by the
+  lever rule
+
+$$
+n_v = n_{\mathrm{feed}}\,
+\frac{z_{\mathrm{CO2}} - x^{\mathrm{eq}}_{\mathrm{CO2}}}
+     {y^{\mathrm{eq}}_{\mathrm{CO2}} - x^{\mathrm{eq}}_{\mathrm{CO2}}}.
+$$
+
+For physical feed fractions, the phase amounts and component flows meet continuously across the
+bubble and dew boundaries and conserve both species. At 278.15 K and 20 kPa,
+$x^{\mathrm{eq}}_{\mathrm{CO2}} = 2.2\times10^{-4}$ and $y^{\mathrm{eq}}_{\mathrm{CO2}} = 0.956$.
+Steam-rich desorption outlets can fall below the bubble point, so the condensate can hold a
+sizeable share of the released CO2. Equilibrium contact gives an upper-bound estimate of
+dissolution for this feed model; finite contact time and condensate holdup are not resolved. In
+pyDAC 3.1 and earlier, the separator shortcut for $z_{\mathrm{CO2}} < 10^{-3}$ returned pure liquid
+water and lost that feed's CO2 whenever the separator was called. The old callers also used the
+ideal dew criterion $(1-z_{\mathrm{CO2}})p \le p_{\mathrm{sat,H2O}}$; disagreement with the RK
+split could lose CO2 near the dew point. Both issues are corrected in 3.2.0.
+
+The separator returns vapor flow $n_v$ and vapor composition $y_i$. The reported mass after
+condenser is:
 
 $$
 m_i^{\mathrm{cond,vap}}
@@ -952,19 +1058,15 @@ chiller. Both share
 `_condenser_duty_from_flash()`, which is the single home for the enthalpy
 constants of §9.3, so the two duties cannot drift onto different models.
 
-The second evaluation needs its own flash, and it is gated. **`FlashSeparator.solve`
-assumes two phases exist**: it reads the equilibrium $y$ and $x$ off $(T,p)$
-alone and splits the feed with the lever rule, without checking the dew point.
-Above the dew point the denominator changes sign, $y_{\mathrm{CO2}}$ goes
-negative, and the lever rule returns *more liquid than there was feed* — with no
-exception raised. Every product-line CO2/H2O flash therefore first tests
-$(1-z_{\mathrm{CO2}})p \le p_{\mathrm{sat,H2O}}(T)$ (`_binary_flash()`): a sample that
-satisfies it leaves entirely as unchanged vapor ($n_v = n_{\mathrm{feed}}$, $n_l = 0$);
-otherwise the separator is called and the returned vapor flow is held within
-$0 \le n_v \le n_{\mathrm{feed}}$. The condenser and vacuum-discharge splits use this guard,
-and `_condenser_flash_at()` applies the same dew-point test when it evaluates the
-cooling-water credit. The configured condenser temperature, like the cooling-water limit, can
-place a flash above its dew point.
+The second evaluation needs its own flash at the cooling-water limit. Every active product-line
+CO2/H2O flash (the condenser, both vacuum-discharge paths and this duty evaluation) uses
+`_binary_flash()`. It requires finite returned values, phase flows within the feed bounds to the
+balance tolerance, and total and component residuals no larger than
+$10^{-9}\max(n_{\mathrm{feed}},10^{-300})$ in the feed's units. The tolerance is scaled to the
+total feed, not to each trace species. A failed check raises an error instead of clipping the
+result or replacing it with zero product or condensate. At or above the dew point, the liquid flow
+and latent duty are zero; either the configured condenser temperature or the cooling-water limit
+can place a feed there.
 
 The split is stored as its own step KPI, `Condenser Duty Rejected To Ambient
 [MJ]` (`energy.condenser.ambient`), on the same negative sign axis as the total.
@@ -994,8 +1096,8 @@ Q_{\mathrm{cond,out}}
 \frac{\dot n_{\mathrm{vac,in}}RT_{\mathrm{cond}}}{p_{\mathrm{out}}}.
 $$
 
-The same polytropic vacuum model from Section 8.2 is then integrated over the
-step. Desorption KPI tables use this updated value rather than the raw in-bed
+The same polytropic vacuum model from Section 8.2, with its standby term for the
+vacuum pump outlet, is then integrated over the step. Desorption KPI tables use this updated value rather than the raw in-bed
 vacuum energy scalar.
 
 ---
@@ -1135,6 +1237,10 @@ For every post-processed step:
 | `final gas-phase mass [kg]` | every declared gas species | $MW_i\sum c_i^g(t_f)V_{jr}\epsilon_{tot}$ |
 | `Saturation [%]` | CO2 adsorbate only | guarded DAC KPI relative to $q_{\mathrm{CO2,ref}}$ |
 | `Step duration [s]` | system | final time $t_f$ |
+
+The integrated-state error is relative to the net change of that species in the bed.
+When the change is small, the percentage is large and sensitive to the solver
+tolerances; tighten the tolerances before reading it as a mass-balance result.
 
 The CO2 saturation KPI is:
 
@@ -1487,13 +1593,27 @@ $$
 \mathrm{Recovery}_i
 =
 \frac{m_i^{\mathrm{rec}}}
-     {|\Delta m_{i,\mathrm{adsorption}}|}.
+     {\left|\sum_{s\,\in\,\{\mathrm{ads},\,\mathrm{press}\}} \Delta m_{i,s}\right|}.
 $$
 
-For CO2 this is interpreted as the fraction of adsorbed CO2 recovered after the
-desorption and downstream separation train. $m_i^{\mathrm{rec}}$ is summed over
-every product step (§13), and the recovery is 0 when adsorption took up at most
-$10^{-12}$ kg.
+The denominator is the net uptake from the feed: the state inventory change (gas and
+sorbent) of every executed step whose inlet takes the feed gas, adsorption (feed in,
+breakthrough out) and pressurization (feed inlet, closed outlet, so its whole intake).
+For CO2, which enters only with the feed, the other steps discharge this amount at an exact
+periodic state, so the recovery cannot exceed 1; at the CSS tolerance it can differ from that
+by a small amount, and the reported ratio is not clipped. For H2O the steam adds water that is
+not in this denominator.
+For CO2 it is the fraction of the CO2 taken up from the feed that is recovered after the
+desorption and downstream separation train. $m_i^{\mathrm{rec}}$ is summed over every
+product step (§13), and the recovery is 0 when the magnitude of the summed `ads` and `press`
+change is at most $10^{-12}$ kg.
+
+It is not the gross recovery of the VSA literature, product over CO2 fed: CO2 that
+breaks through during adsorption is not in this denominator. The two agree when nothing
+breaks through. In a DAC cycle pressurized with air the press term is about
+$10^{-5}$ of the adsorption uptake; in a cycle pressurized with a concentrated feed after
+a deep vacuum it is not negligible (5-40 % of the adsorption uptake at 12 % CO2), and
+before 3.2 its omission could give a recovery above 1.
 
 ### 15.2 Purity
 
@@ -1810,19 +1930,20 @@ main reported quantities are:
 | Bed volume | saved `SimulationContext` geometry |
 | Solid adsorbent mass | $m_s$ of §16 |
 | CO2/H2O adsorbed | adsorption absolute state mass change |
+| CO2 feed uptake | denominator of §15.1: absolute sum of the state mass changes of `ads` and `press` |
 | CO2/H2O desorbed | absolute state mass change summed over the product steps |
 | CO2/H2O recovered | $m_i^{\mathrm{rec}}$ of §13 |
-| CO2 vented | sum of `vented mass` over the steps whose outlet is not collected, and its percent of adsorbed CO2 (NaN for a result without the record) |
+| CO2 vented | sum of `vented mass` over the steps whose outlet is not collected, and its percent of the CO2 feed uptake (NaN for a result without the record) |
 | Saturation after adsorption | final CO2 bed loading fraction of `ads` |
 | Saturation after desorption | final CO2 bed loading fraction of the last desorption step |
 | CO2/H2O working capacity | end-adsorption minus end-desorption inventory per solid mass |
-| CO2/H2O recovery | recovered divided by adsorbed |
+| CO2/H2O recovery | recovered divided by the feed uptake (§15.1) |
 | Equivalent work | equivalent energy per recovered CO2 |
 | Productivity | recovered CO2 per bed volume per day |
 | Wet/dry purity | recovered product mole fractions |
 | O2/N2 content | recovered product ppm (molar) |
 | H2O/CO2 ratio | recovered H2O over recovered CO2 |
-| Preheating temperature check | final bed minimum vs steam-condensation temperature |
+| Preheating temperature check | final bed minimum vs steam-condensation temperature; omitted for a cycle without `heat` or `w_purge` (the check does not apply, `preheating_temperatures()` returns `None` for both) |
 | Steam/CO2 ratio | steam injected in every step divided by recovered CO2 (absent without steam) |
 
 Without H2O, the H2O transfer, working-capacity and recovery entries and the H2O/CO2 ratio are
@@ -1894,7 +2015,7 @@ figures:
 - recovered product composition and trace impurities
 - equivalent-work conversion conditions as a compact table figure
 
-This is the full DAC suite. `KPIPlotting.plot_all()` requires CO2. Without the full
+This is the full DAC suite. `KPIPlotting.plot_all_kpi_figures()` requires CO2. Without the full
 CO2/H2O/O2/N2 set it uses generic mass-change plots; the residual-gas plots include only the
 O2/N2 present and are skipped when neither is. The adsorption-normalized mass figure needs both
 CO2 and H2O. The process overview and the recovered-product composition figures need all four
@@ -2105,3 +2226,19 @@ discharge. The mass percentage table reports
 `100 * state delta m(step) / abs(state delta m(adsorption))` for CO2 and H2O;
 positive values are uptake and negative values are release relative to the
 adsorption uptake.
+
+
+## Closed-inlet product and non-negative work (3.2.0)
+
+For blow/heat/w_purge/w_des with exactly zero imposed inlet, dry collected product for CO2
+and each inert is the signed negative bed-state inventory change. Closed-inlet vent records use the
+same basis, including wet vents. `mass.outlet.saved.simpson` and `mass.outlet.accumulator` retain
+per-species diagnostics; unavailable accumulators are omitted. KPIs do not consume these diagnostics.
+Collected H2O/condenser/flash paths retain their time-resolved accounting.
+
+The legacy compression proxy clamps net area-weighted inlet Q and the pressure-ratio bracket
+separately at zero. Vacuum work does the same to outlet Q and its bracket, including behind a condenser.
+Feed-blower supply work and pump idle power retain their existing laws. This removes expansion credits;
+it does not introduce a new supply-demand convention. Passive energy ODE states still affect adaptive
+error control: null new options do not imply complete bit identity after these mandatory default fixes.
+Output-schedule metadata saves spec, version and requested count; actual times include event roots.

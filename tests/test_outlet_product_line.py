@@ -166,7 +166,8 @@ def test_a_schema_v4_case_gets_the_unit_free_valve_names_with_the_same_values():
 
 
 def test_valve_names_must_match_the_schema_version():
-    v4 = deepcopy(default_profile())
+    from pydac.config.migrations import pre_feed_blower_v9_vocabulary
+    v4 = pre_feed_blower_v9_vocabulary(default_profile())
     v4["schema_version"] = PRE_VALVE_RENAME_SCHEMA_VERSION
     with pytest.raises(ConfigurationError, match="exists only since case schema 5"):
         upgrade_experiment_document(v4)
@@ -189,7 +190,8 @@ def test_a_schema_v5_case_gets_the_overall_wall_override_name_with_the_same_valu
 
 
 def test_wall_override_name_must_match_the_schema_version():
-    v5 = deepcopy(default_profile())
+    from pydac.config.migrations import pre_feed_blower_v9_vocabulary
+    v5 = pre_feed_blower_v9_vocabulary(default_profile())
     v5["schema_version"] = PRE_WALL_RENAME_SCHEMA_VERSION
     with pytest.raises(ConfigurationError, match="exists only since case schema 6"):
         upgrade_experiment_document(v5)
@@ -460,6 +462,123 @@ def test_every_binary_flash_passes_a_dry_sample_through_and_stays_inside_its_fee
     assert wet["nl"] == pytest.approx(2.0 - wet["nv"])
 
 
+def test_a_steam_rich_flash_keeps_its_co2_on_both_sides_of_the_bubble_point():
+    """A CO2-lean feed (z < 1e-3) splits at equilibrium; it is not dropped as pure water.
+
+    At 278.15 K and 20 kPa the condensate dissolves CO2 only up to x_CO2 ~ 2.2e-4, so a
+    feed between that and 1e-3 still leaves vapour; below it, one liquid phase holds the
+    whole feed. CO2 is conserved in both cases and nv is continuous at the bubble point.
+    """
+    from pydac.core.thermodynamics_separators import Component, FlashSeparator
+
+    separator = FlashSeparator(
+        Component("CO2", 304.2, 73.74), Component("H2O", 647.096, 220.64)
+    )
+    T, p, n = 278.15, 2e4, 2.0
+    x_eq = separator.solve(n_feed=1.0, z_CO2_feed=0.5, T=T, p=p)["x_CO2"]
+    assert 1e-4 < x_eq < 1e-3
+
+    def co2_out(res):
+        return res["nv"] * res["y_CO2"] + res["nl"] * res["x_CO2"]
+
+    two_phase = StepPostProcessor._binary_flash(separator, n, 5e-4, T, p)
+    assert two_phase["nv"] > 0.0
+    assert two_phase["x_CO2"] == pytest.approx(x_eq)
+    assert co2_out(two_phase) == pytest.approx(n * 5e-4, rel=1e-12)
+
+    liquid = StepPostProcessor._binary_flash(separator, n, 0.5 * x_eq, T, p)
+    assert liquid["nv"] == 0.0 and liquid["nl"] == n
+    assert liquid["x_CO2"] == 0.5 * x_eq
+    assert co2_out(liquid) == pytest.approx(n * 0.5 * x_eq, rel=1e-12)
+
+    just_above = separator.solve(n_feed=n, z_CO2_feed=x_eq * (1 + 1e-9), T=T, p=p)
+    assert 0.0 <= just_above["nv"] < 1e-9 * n
+
+
+def _separator():
+    from pydac.core.thermodynamics_separators import Component, FlashSeparator
+
+    return FlashSeparator(Component("CO2", 304.2, 73.74), Component("H2O", 647.096, 220.64))
+
+
+def _species_balance(res, n, z):
+    return (
+        res["nv"] * res["y_CO2"] + res["nl"] * res["x_CO2"] - n * z,
+        res["nv"] * res["y_H2O"] + res["nl"] * res["x_H2O"] - n * (1.0 - z),
+    )
+
+
+@pytest.mark.parametrize(
+    "T, p, z",
+    [
+        (278.15, 2e4, 0.956312225522054),     # between the RK dew point and the ideal one
+        (298.15, 101325.0, 0.9685237412473002),
+        (278.15, 2e4, 5e-4),                  # two phases
+        (278.15, 2e4, 1e-4),                  # below the bubble point
+        (373.15, 2e4, 0.5),                   # above the boiling point: no liquid at all
+    ],
+)
+def test_every_flash_region_closes_both_species_balances(T, p, z):
+    """One phase test for every caller; near the dew point the old ideal gate and the
+    RK split disagreed and lost up to 1.9e-4 mol CO2 per mol."""
+    res = StepPostProcessor._binary_flash(_separator(), 1.0, z, T, p)
+    co2, h2o = _species_balance(res, 1.0, z)
+    assert abs(co2) <= 1e-12 and abs(h2o) <= 1e-12
+    assert 0.0 <= res["nv"] <= 1.0 and res["nl"] == pytest.approx(1.0 - res["nv"], abs=1e-15)
+    if res["nl"] == 0.0:
+        assert res["y_CO2"] == z
+
+
+@pytest.mark.parametrize("z, warns", [(-5e-4, False), (1.0005, False), (-0.01, True), (1.01, True)])
+def test_a_feed_fraction_outside_the_unit_interval_is_flashed_and_warned_beyond_the_tolerance(z, warns):
+    """The outlet-face extrapolation can carry z slightly outside [0, 1]; it is
+    flashed as given (balances close), and a gap beyond 1e-3 is no longer silent."""
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        res = _separator().solve(n_feed=1.0, z_CO2_feed=z, T=278.15, p=2e4)
+    co2, h2o = _species_balance(res, 1.0, z)
+    assert abs(co2) <= 1e-12 and abs(h2o) <= 1e-12
+    assert [issubclass(w.category, RuntimeWarning) and "outside [0, 1]" in str(w.message)
+            for w in caught] == ([True] if warns else [])
+
+
+def test_a_flash_without_feed_returns_nothing():
+    res = StepPostProcessor._binary_flash(_separator(), 0.0, 0.0, 298.15, 101325.0)
+    assert res["nv"] == 0.0 and res["nl"] == 0.0
+
+
+def test_a_failed_flash_raises_instead_of_reporting_zero_product():
+    """A non-finite split used to become 'all liquid' silently."""
+    separator = _separator()
+    broken = {"y_CO2": 0.9, "y_H2O": 0.1, "x_CO2": 2e-4, "x_H2O": 1 - 2e-4,
+              "nv": float("nan"), "nl": float("nan")}
+    separator.solve = lambda **_: dict(broken)
+    with pytest.raises(ValueError, match="non-finite"):
+        StepPostProcessor._binary_flash(separator, 1.0, 5e-4, 278.15, 2e4)
+    with pytest.raises(ValueError, match="CO2 fraction is not finite"):
+        _separator().solve(n_feed=1.0, z_CO2_feed=float("nan"), T=278.15, p=2e4)
+    with pytest.raises(ValueError, match="feed must be finite"):
+        _separator().solve(n_feed=-1.0, z_CO2_feed=0.1, T=278.15, p=2e4)
+
+
+def test_the_cooling_water_flash_is_the_checked_product_flash(s_des, monkeypatch):
+    """The duty split at the cooling-water limit uses the same checked flash: a
+    failed flash raises there too, instead of counting no condensate."""
+    s_des._get_flowrates()
+    calls = []
+
+    def fail(separator, n_feed, z_CO2, T, p):
+        calls.append(T)
+        raise ValueError("flash failed")
+
+    monkeypatch.setattr(StepPostProcessor, "_binary_flash", staticmethod(fail))
+    with pytest.raises(ValueError, match="flash failed"):
+        s_des._condenser_flash_at(303.15)
+    assert calls == [303.15]
+
+
 def test_a_condenser_step_records_the_temperature_it_delivers(s_des, monkeypatch):
     default = s_des.compute_step_metrics()
     assert _ids(default, "temperature.condenser") == {"system": 278.15}
@@ -541,6 +660,33 @@ def test_a_dry_cycle_collects_without_condenser_and_reports_its_kpis(tmp_path, c
     assert np.isnan(purity["oxygen_ppm"]) and not np.isnan(purity["nitrogen_ppm"])
     assert np.isnan(kpis.h2o_to_co2_ratio()) and kpis.steam_mass_used() == 0.0
     assert kpis.preheating_temperatures()["steam_condensation_K"] is None
+
+
+def test_a_cycle_without_preheating_reports_kpis_and_counts_the_press_feed(tmp_path):
+    # A cycle ads -> blow -> w_des -> press, with no heat or w_purge step.
+    # The CSS report raised KeyError in preheating_temperatures, and the CO2 taken in by
+    # the feed pressurization was missing from the recovery denominator.
+    from pydac.post_processing.kpi.reporting import KPIReporting
+    from pydac.utils.nsga2.evaluation import extract_candidate_kpis
+
+    settings = {**DRY, "execution.cycle_steps": ["ads", "blow", "w_des", "press"],
+                "execution.output_root": str(tmp_path)}
+    # KPI outputs are on by default: the run itself writes the CSS report.
+    result = pydac.run_css(load_experiment(CASE, settings=settings))
+    kpis = pydac.CycleKPIs(pydac.CycleDataLoader(result.folder).load())
+
+    assert kpis.preheating_temperatures() == {"bed_minimum_K": None,
+                                              "steam_condensation_K": None}
+    table = KPIReporting(kpis).get_css_summary_table()
+    assert not table["Metric"].str.startswith("Preheating").any()
+    assert np.isnan(extract_candidate_kpis(kpis)["T_bed_min_preheat"])
+
+    press = kpis.signed_mass_change("CO2", "press")
+    assert press > 0.0  # closed outlet: the press keeps all the feed CO2 it takes in
+    uptake = kpis.mass_change("CO2", "ads") + press
+    assert kpis.feed_uptake_mass("CO2") == pytest.approx(uptake, rel=1e-12)
+    assert kpis.recovery("CO2") == pytest.approx(kpis.recovered_mass("CO2") / uptake,
+                                                 rel=1e-12)
 
 
 def test_a_run_refuses_steam_steps_without_h2o_and_product_without_co2():

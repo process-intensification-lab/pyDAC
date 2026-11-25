@@ -53,6 +53,10 @@ MJ_PER_KWH = 3.6
 # than over one resolved step.
 DESORPTION_STEP_KEYS = frozenset({"w_des", "s_des", "s_purge"})
 
+# The steps whose inlet takes the feed gas: adsorption, and pressurization (feed
+# inlet, closed outlet). Recovery is referred to the bed's net uptake over them.
+FEED_STEP_KEYS = frozenset({"ads", "press"})
+
 # The direct-air-capture mixture. KPIs that name a species of it report NaN, or are
 # skipped, when the case's mixture does not contain it.
 DAC_SPECIES = ("CO2", "H2O", "O2", "N2")
@@ -339,8 +343,11 @@ class CycleKPIs:
         return bool(self.vented_mass_by_step(species))
 
     def vented_fraction_of_adsorbed(self, species="CO2"):
-        """Return the vented mass as a fraction of what adsorption took up [-]."""
-        adsorbed = self.mass_change(species, "adsorption", basis="preferred")
+        """Return the vented mass as a fraction of the feed uptake [-].
+
+        Same reference as ``recovery``, so the two fractions add up at CSS.
+        """
+        adsorbed = self.feed_uptake_mass(species)
         if adsorbed <= 1e-12:
             return 0.0
         return float(self.vented_mass(species) / adsorbed)
@@ -493,15 +500,17 @@ class CycleKPIs:
 
     # Constraint: preheating  must be above minimum bed and below steam condensation temperature
     def preheating_temperatures(self):
-        """Return saved minimum-bed and steam-condensation temperatures [K]."""
+        """Return saved minimum-bed and steam-condensation temperatures [K].
+
+        Both are ``None`` for a cycle without a ``heat`` or ``w_purge`` step (e.g.
+        ``ads -> blow -> w_des -> press``): the preheating constraint does not apply.
+        """
         heating_step = next(
             (step for step in ("heat", "w_purge") if step in self.data.step_order),
             None,
         )
         if heating_step is None:
-            raise KeyError(
-                f"Neither 'heat' nor 'w_purge' is present in {self.data.cycle_label}."
-            )
+            return {"bed_minimum_K": None, "steam_condensation_K": None}
         return {
             "bed_minimum_K": self.data.value(
                 step=heating_step,
@@ -625,13 +634,32 @@ class CycleKPIs:
             )
         return pd.DataFrame(rows)
 
-    def recovery(self, species="CO2"):
-        species_token = self._species(species, "recovery")
-        adsorbed = self.mass_change(
-            species_token, "adsorption", basis="preferred"
+    def feed_uptake_mass(self, species="CO2"):
+        """Return the net mass of one species the bed takes up from the feed [kg].
+
+        Summed over the executed feed steps (``FEED_STEP_KEYS``): the inventory change
+        of adsorption (fed minus what leaves its outlet) plus that of pressurization,
+        whose closed outlet keeps its whole intake in the bed. At CSS this is what the
+        other steps discharge, so the recovery cannot exceed 1. Without a feed
+        pressurization it is the adsorption uptake alone.
+        """
+        species_token = self._species(species, "feed uptake")
+        return abs(
+            float(
+                sum(
+                    self.signed_mass_change(species_token, step_key, basis="preferred")
+                    for step_key in self.data.step_order
+                    if step_key in FEED_STEP_KEYS
+                )
+            )
         )
+
+    def recovery(self, species="CO2"):
+        """Return recovered over feed-uptake mass [-] (``feed_uptake_mass``)."""
+        species_token = self._species(species, "recovery")
+        uptake = self.feed_uptake_mass(species_token)
         recovered = self.recovered_mass(species_token)
-        return float(recovered / adsorbed) if adsorbed > 1e-12 else 0.0
+        return float(recovered / uptake) if uptake > 1e-12 else 0.0
     
     def equivalent_work(self, conditions=None):
         """Return total equivalent work per recovered CO2 [MJ/kgCO2]."""

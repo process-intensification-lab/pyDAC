@@ -87,7 +87,7 @@ pydac nsga2 --config examples/cases/05_nsga2_trial.json --bounds examples/cases/
 ```
 
 The first command checks the campaign and prints its folder
-(`simulation_results/nsga2/tutorial_05_1D_25z_packed_bed_ac074b54`); the second runs it: 32 CSS runs on
+(`simulation_results/nsga2/tutorial_05_1D_25z_packed_bed_9192a1da`); the second runs it: 32 CSS runs on
 a coarse 1D grid, about 3 minutes with 8 workers. It needs at least 8 free cores (the notebook
 explains how to count them); with fewer, lower `--workers`: same result, longer run. Set
 `OMP_NUM_THREADS=1`, `OPENBLAS_NUM_THREADS=1` and `MKL_NUM_THREADS=1` in the shell first.

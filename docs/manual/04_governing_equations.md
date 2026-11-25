@@ -105,7 +105,7 @@ coefficient used in the partial differential equation (PDE) groups.
 | viscosity: Chapman–Enskog + Neufeld + Wilke | [`init_visc_mix()`](../../src/pydac/core/column_model.py) |
 | Shomate heat capacities — the **only** source of gas `cp`, per step at `T_feed` | [`init_cp_mix()`](../../src/pydac/core/column_model.py) |
 | mixture thermal conductivity | [`init_lambda_mix()`](../../src/pydac/core/column_model.py) |
-| Fuller–Schettler–Giddings + Wilke mixture diffusivity | [`calc_Diff_coeffs()`](../../src/pydac/core/column_model.py) |
+| Fuller–Schettler–Giddings + Wilke mixture diffusivity (Blanc's law D_i = (1 − y_i) / Σ_j y_j/D_ij; every entry the law cannot evaluate (non-finite or ≤ 0, e.g. 0/0 for a species alone in the reference gas) is replaced by a convention: the limit approached with the other species in equal shares, 1 / mean_j(1/D_ij), which is D_ij for a binary; for more species the limit depends on the direction of approach, so it is not the unique pure-gas diffusivity; values still invalid after this are refused with the step and the gas) | [`calc_Diff_coeffs()`](../../src/pydac/core/column_model.py) |
 
 All per-species arrays follow the declared mixture order. The terminal summary
 and schema-v1 `resolved_runtime.json` read the same unit-bearing values stored
@@ -330,7 +330,9 @@ Boundary conditions use the generic linear form of pymrm
 pair is the 2D coupling of §5.1; the pressure pair is step-dependent (sealed bed
 for `cool`, closed inlet / pressure-related outlet for `blow`, `heat`, `w_purge`, `w_des`,
 an inlet valve to the upstream (feed) pressure for `press`, whose inflow follows
-from the pressure difference, open inlet/outlet otherwise). The per-step
+from the pressure difference, open inlet/outlet otherwise). In 1D two opt-in laws replace a
+face velocity: the feed blower sets the `press` inlet, and the one-way outlet sets the
+`ads`/`startup` outlet. The per-step
 table, with the events that terminate each step, is owned by
 [05 — Cycle steps](05_cycle_steps.md).
 

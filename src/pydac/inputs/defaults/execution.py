@@ -107,6 +107,11 @@ def _cycle_options(value: Any, name: str) -> dict[int, dict[str, Any]]:
         if not isinstance(overrides, Mapping):
             raise TypeError(f"`{name}[{index}]` must be a mapping of overrides.")
         resolved = dict(overrides)
+        if "termination_mode" in resolved:
+            # Canonical here, as the global and step modes: readers compare it literally.
+            resolved["termination_mode"] = _termination_mode(
+                resolved["termination_mode"], f"{name}[{index}].termination_mode"
+            )
         if "step_options" in resolved:
             resolved["step_options"] = _step_options(
                 resolved["step_options"], f"{name}[{index}].step_options"

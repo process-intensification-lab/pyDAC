@@ -4,6 +4,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from pydac.core.feed_blower import PRESS_INLET_MODELS
+from pydac.core.vacuum_manifold import (
+    DEFAULT_SETPOINT_BAND_FRACTION,
+    IDLE_MODES,
+    MAX_SETPOINT_BAND_FRACTION,
+    MIN_SETPOINT_BAND_FRACTION,
+    VACUUM_OUTLET_MODELS,
+)
 from pydac.inputs.defaults._rules import (
     Rule,
     fraction,
@@ -40,6 +48,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": None,
                     "blowdown_valve_conductance": None,
                     "pressurization_valve_conductance": None,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 298.15,
@@ -96,6 +114,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": None,
                     "blowdown_valve_conductance": None,
                     "pressurization_valve_conductance": None,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 298.15,
@@ -152,6 +180,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": None,
                     "blowdown_valve_conductance": 0.01,
                     "pressurization_valve_conductance": None,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 298.15,
@@ -208,6 +246,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": None,
                     "blowdown_valve_conductance": None,
                     "pressurization_valve_conductance": None,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 373.15,
@@ -264,6 +312,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": None,
                     "blowdown_valve_conductance": None,
                     "pressurization_valve_conductance": None,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 373.15,
@@ -320,6 +378,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": 1e-3,
                     "blowdown_valve_conductance": None,
                     "pressurization_valve_conductance": None,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 373.15,
@@ -376,6 +444,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": 1e-3,
                     "blowdown_valve_conductance": None,
                     "pressurization_valve_conductance": None,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 373.15,
@@ -432,6 +510,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": None,
                     "blowdown_valve_conductance": None,
                     "pressurization_valve_conductance": None,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 373.15,
@@ -488,6 +576,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": None,
                     "blowdown_valve_conductance": None,
                     "pressurization_valve_conductance": None,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 298.15,
@@ -544,6 +642,16 @@ def cycle_defaults() -> dict[str, Any]:
                     "steam_mass_flow_kg_s": None,
                     "blowdown_valve_conductance": None,
                     "pressurization_valve_conductance": 0.01,
+                    "ads_outlet_overpressure_Pa": None,
+                    "press_inlet_model": "valve",
+                    "feed_blower_flow_m3_s": None,
+                    "feed_blower_band_fraction": None,
+                    "vacuum_outlet_model": "valve",
+                    "vacuum_pump_speed_m3_s": None,
+                    "vacuum_pump_ultimate_pressure_Pa": None,
+                    "vacuum_setpoint_band_fraction": None,
+                    "vacuum_pump_idle_mode": None,
+                    "vacuum_pump_idle_power_W": None,
                 },
                 "thermal": {
                     "feed_temperature_K": 298.15,
@@ -625,12 +733,86 @@ def step_rules():
         )
         for name in step["flow"]:
             rules[prefix + ("flow", name)] = nonnegative_number(nullable=True)
-        for valve, boundary in (("blowdown", "outlet"), ("pressurization", "inlet")):
+        for valve, boundary, note in (
+            ("blowdown", "outlet", " Not read with vacuum_outlet_model 'vacuum_pump'."),
+            ("pressurization", "inlet", " Not read with press_inlet_model 'feed_blower'."),
+        ):
             rules[prefix + ("flow", f"{valve}_valve_conductance")] = nonnegative_number(
                 f"Valve conductance alpha [1/m] of the {boundary} relation "
-                "dp/dn = alpha (p_set - p), n the outward normal; null is an ideal valve.",
+                "dp/dn = alpha (p_set - p), n the outward normal; null is an ideal valve."
+                + note,
                 nullable=True,
             )
+        rules[prefix + ("flow", "press_inlet_model")] = Rule(
+            kind="string", choices=PRESS_INLET_MODELS, normalize=_lowercase,
+            description="Press inlet: valve (default), or capacity-limited feed_blower (1D press only).",
+        )
+        rules[prefix + ("flow", "ads_outlet_overpressure_Pa")] = positive_number(
+            "One-way outlet pressure rise at nominal feed velocity [Pa]; 1D ads/startup only.", nullable=True)
+        rules[prefix + ("flow", "feed_blower_flow_m3_s")] = positive_number(
+            "Supply volumetric capacity at this step's feed pressure and temperature [m3/s]; "
+            "required with feed_blower. Absolute: not coupled automatically to ads flow.", nullable=True,
+        )
+        rules[prefix + ("flow", "feed_blower_band_fraction")] = Rule(
+            kind="number", minimum=1e-6, maximum=0.1, nullable=True,
+            description="Throttle width / feed pressure in [1e-6, 0.1]; null uses 1e-3 after inheritance.",
+        )
+        rules[prefix + ("flow", "vacuum_outlet_model")] = Rule(
+            kind="string",
+            choices=VACUUM_OUTLET_MODELS,
+            normalize=_lowercase,
+            description=(
+                "Outlet of a vacuum-connected step (blow, heat, w_purge, w_des): 'valve' "
+                "to a vacuum reservoir at the outlet pressure (blowdown_valve_conductance), or "
+                "'vacuum_pump', a pump of finite speed with pressure control at the outlet "
+                "pressure (1D only; blowdown_valve_conductance is then not read)."
+            ),
+        )
+        rules[prefix + ("flow", "vacuum_pump_speed_m3_s")] = positive_number(
+            "Asymptotic volumetric speed S0 [m3/s] of the vacuum pump, "
+            "S(p) = S0 (1 - p_ult/p); required with vacuum_outlet_model 'vacuum_pump'.",
+            nullable=True,
+        )
+        rules[prefix + ("flow", "vacuum_pump_ultimate_pressure_Pa")] = nonnegative_number(
+            "Ultimate pressure p_ult [Pa] of the vacuum pump, nonnegative and below the "
+            "outlet pressure. A resolved null uses 0 Pa. An explicit null in a preset or "
+            "setting inherits the lower layer; it does not reset an inherited value.",
+            nullable=True,
+        )
+        rules[prefix + ("flow", "vacuum_setpoint_band_fraction")] = Rule(
+            kind="number",
+            nullable=True,
+            minimum=MIN_SETPOINT_BAND_FRACTION,
+            maximum=MAX_SETPOINT_BAND_FRACTION,
+            description=(
+                "Width of the control's throttle band divided by the outlet-pressure "
+                "setpoint, in [1e-6, 0.1]: closed at the setpoint and fully open at or above setpoint * "
+                f"(1 + band). A resolved null uses {DEFAULT_SETPOINT_BAND_FRACTION:g}. An "
+                "explicit null in a preset or setting inherits the lower layer; it does not "
+                "reset an inherited value."
+            ),
+        )
+        rules[prefix + ("flow", "vacuum_pump_idle_mode")] = Rule(
+            kind="string",
+            nullable=True,
+            choices=IDLE_MODES,
+            normalize=_lowercase,
+            description=(
+                "What the vacuum pump draws while the pressure control holds it without "
+                "removing gas: 'off' (on/off with an isolation valve, no standby power), "
+                "'minimum_speed' (variable-speed drive at its minimum speed) or 'fixed_speed' "
+                "(fixed-speed pump running against the closed control valve). A resolved null "
+                "uses 'off'. An explicit null in a preset or setting inherits the lower layer; "
+                "it does not reset an inherited mode."
+            ),
+        )
+        rules[prefix + ("flow", "vacuum_pump_idle_power_W")] = positive_number(
+            "Standby electric power P_idle [W] of the vacuum pump, charged as P_idle (1 - g) "
+            "while the control throttles; the vendor's absorbed power at minimum speed or at "
+            "the ultimate pressure. Required with vacuum_pump_idle_mode 'minimum_speed' or "
+            "'fixed_speed', null otherwise.",
+            nullable=True,
+        )
         for group in ("thermal", "pressure"):
             for name in step[group]:
                 rules[prefix + (group, name)] = positive_number(nullable=True)

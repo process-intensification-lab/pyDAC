@@ -450,3 +450,14 @@ def test_nested_and_dotted_settings_and_terminal_objects_give_the_same_case():
     with pytest.raises(ConfigurationError, match="empty block"):
         load_experiment(LEGACY_CASE, settings={"grid": {}})
     assert resolve_settings(["sorbent.fixed_adsorbates={}"]) == {"sorbent.fixed_adsorbates": {}}
+
+
+@pytest.mark.parametrize("raw", ["NaN", "Infinity", "-Infinity", ""])
+def test_a_refused_cli_value_names_its_setting(raw):
+    """A refused `--set` value says which setting it came from."""
+    from pydac.config.settings import SettingsError, resolve_settings
+
+    path = "steps.blow.flow.vacuum_pump_idle_power_W"
+    with pytest.raises(SettingsError, match=f"Setting `{path}`: ") as info:
+        resolve_settings([f"{path}={raw}"])
+    assert isinstance(info.value.__cause__, SettingsError)

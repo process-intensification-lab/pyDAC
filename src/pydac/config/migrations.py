@@ -16,8 +16,10 @@ species-keyed `sorbent.heats_of_adsorption_J_mol` and makes the solid
 `heat_capacity` and `fixed_adsorbates` declarations public; an older case gets
 the values it computed with.  Schema v8 adds the startup composition field
 `initial_solid_loadings_mol_per_kg`; an older case gets null, the equilibrium
-with the initial gas it computed with.  The upgrades are intentionally small and contain
-no physics.
+with the initial gas it computed with. Schema v9 adds vacuum-outlet fields,
+including standby settings. Schema v10 adds press feed-blower fields; older steps
+retain the inlet valve, and schema-v9 pump settings remain unchanged. Schema v11 adds disabled output-schedule and ads/startup
+one-way-outlet fields, preserving schema-v10 blower values. The upgrades contain no physics.
 """
 
 from __future__ import annotations
@@ -27,10 +29,14 @@ from copy import deepcopy
 from typing import Any
 
 from pydac.config.errors import ConfigurationError
+from pydac.core.vacuum_manifold import VACUUM_PUMP_FIELDS, VALVE_OUTLET_MODEL
 from pydac.inputs.defaults.steps import INITIAL_SOLID_LOADINGS_FIELD
 
 
-CURRENT_SCHEMA_VERSION = 8
+CURRENT_SCHEMA_VERSION = 11
+PRE_OUTPUT_SCHEDULE_SCHEMA_VERSION = 10
+PRE_FEED_BLOWER_SCHEMA_VERSION = 9
+V9_FEED_BLOWER_FIELDS = {"press_inlet_model": "valve", "feed_blower_flow_m3_s": None, "feed_blower_band_fraction": None}
 LEGACY_SCHEMA_VERSION = 1
 #: The last schema with `steps.<step>.solver.linear_solver` and
 #: `simulation.solver.krylov_min_states`.
@@ -46,6 +52,8 @@ PRE_WALL_RENAME_SCHEMA_VERSION = 5
 PRE_SORBENT_MAPPING_SCHEMA_VERSION = 6
 #: The last schema without the startup `composition.initial_solid_loadings_mol_per_kg`.
 PRE_INITIAL_LOADING_SCHEMA_VERSION = 7
+#: The last schema without the per-step vacuum-outlet fields (`flow.vacuum_*`).
+PRE_VACUUM_OUTLET_SCHEMA_VERSION = 8
 SUPPORTED_SCHEMA_VERSIONS = (
     LEGACY_SCHEMA_VERSION,
     SOLVER_CHOICE_SCHEMA_VERSION,
@@ -54,6 +62,9 @@ SUPPORTED_SCHEMA_VERSIONS = (
     PRE_WALL_RENAME_SCHEMA_VERSION,
     PRE_SORBENT_MAPPING_SCHEMA_VERSION,
     PRE_INITIAL_LOADING_SCHEMA_VERSION,
+    PRE_VACUUM_OUTLET_SCHEMA_VERSION,
+    PRE_FEED_BLOWER_SCHEMA_VERSION,
+    PRE_OUTPUT_SCHEDULE_SCHEMA_VERSION,
     CURRENT_SCHEMA_VERSION,
 )
 
@@ -88,6 +99,12 @@ V6_SORBENT_DECLARATIONS = {
     "fixed_adsorbates": {},
 }
 V7_SORBENT_FIELDS = ("heats_of_adsorption_J_mol", *V6_SORBENT_DECLARATIONS)
+
+#: The schema-v9 `flow` fields and what a schema-v8 step computed with: the valve.
+V8_VACUUM_OUTLET_FIELDS = {
+    "vacuum_outlet_model": VALVE_OUTLET_MODEL,
+    **{name: None for name in VACUUM_PUMP_FIELDS},
+}
 
 #: Schema-v2 requests that already meant the direct solve: `auto` let pyDAC
 #: choose, and pyDAC now always chooses it. `gmres` is refused on upgrade.
@@ -131,7 +148,7 @@ LEGACY_ADSORPTION_DEFAULTS = {
 def upgrade_experiment_document(
     document: Mapping[str, Any], *, label: str = "experiment"
 ) -> dict[str, Any]:
-    """Return a schema-v8 copy, upgrading a schema-v1 to v7 document if needed."""
+    """Return a schema-v11 copy, upgrading a schema-v1 to v10 document if needed."""
     if not isinstance(document, Mapping):
         raise ConfigurationError(f"{label} must be a JSON object.")
     result = deepcopy(dict(document))
@@ -153,12 +170,9 @@ def upgrade_experiment_document(
     simulation = result.setdefault("simulation", {})
     if not isinstance(simulation, dict):
         raise ConfigurationError(f"`simulation` in {label} must be a JSON object.")
-    if version not in (
-        PRE_VALVE_RENAME_SCHEMA_VERSION,
-        PRE_WALL_RENAME_SCHEMA_VERSION,
-        PRE_SORBENT_MAPPING_SCHEMA_VERSION,
-        PRE_INITIAL_LOADING_SCHEMA_VERSION,
-    ):
+    refuse_feed_blower_before_v10(result, label)
+    refuse_output_schedule_before_v11(result, label)
+    if version is None or version <= PRE_OUTLET_SCHEMA_VERSION:
         if version == SOLVER_CHOICE_SCHEMA_VERSION:
             _drop_v2_solver_choice(simulation, label)
         elif version != PRE_OUTLET_SCHEMA_VERSION:
@@ -167,17 +181,29 @@ def upgrade_experiment_document(
                 simulation["adsorption"] = _upgrade_legacy_adsorption(legacy_adsorption)
         _add_v3_outlet_groups(simulation, label)
         _add_v3_geometry_input(simulation, label)
-    if version not in (
-        PRE_WALL_RENAME_SCHEMA_VERSION,
-        PRE_SORBENT_MAPPING_SCHEMA_VERSION,
-        PRE_INITIAL_LOADING_SCHEMA_VERSION,
-    ):
+    if version is None or version <= PRE_VALVE_RENAME_SCHEMA_VERSION:
         _rename_v4_valve_fields(simulation, label)
-    if version not in (PRE_SORBENT_MAPPING_SCHEMA_VERSION, PRE_INITIAL_LOADING_SCHEMA_VERSION):
+    if version is None or version <= PRE_WALL_RENAME_SCHEMA_VERSION:
         _rename_v5_wall_fields(simulation, label)
-    if version != PRE_INITIAL_LOADING_SCHEMA_VERSION:
+    if version is None or version <= PRE_SORBENT_MAPPING_SCHEMA_VERSION:
         _upgrade_v6_sorbent_fields(simulation, label)
-    _add_v7_initial_loadings(simulation, label)
+    if version is None or version <= PRE_INITIAL_LOADING_SCHEMA_VERSION:
+        _add_v7_initial_loadings(simulation, label)
+    if version is None or version <= PRE_VACUUM_OUTLET_SCHEMA_VERSION:
+        _add_v8_vacuum_outlet_fields(simulation, label)
+    if version is None or version <= PRE_FEED_BLOWER_SCHEMA_VERSION:
+        for step in (_step_mapping(simulation) or {}).values():
+            flow = step.get("flow") if isinstance(step, dict) else None
+            if isinstance(flow, dict):
+                flow.update(deepcopy(V9_FEED_BLOWER_FIELDS))
+    from pydac.utils.output_schedule import SCHEDULE_DEFAULTS
+    grid = simulation.get("grid")
+    if isinstance(grid, dict):
+        grid.setdefault("output_schedule", dict(SCHEDULE_DEFAULTS))
+    for step in (_step_mapping(simulation) or {}).values():
+        flow = step.get("flow") if isinstance(step, dict) else None
+        if isinstance(flow, dict):
+            flow.setdefault("ads_outlet_overpressure_Pa", None)
     if version is not None:
         result["schema_version"] = CURRENT_SCHEMA_VERSION
     return result
@@ -314,7 +340,7 @@ def refuse_initial_loadings_before_v8(document: Any, label: str) -> None:
     version = document.get("schema_version")
     if isinstance(version, bool) or version not in SUPPORTED_SCHEMA_VERSIONS:
         return
-    if version == CURRENT_SCHEMA_VERSION:
+    if version > PRE_INITIAL_LOADING_SCHEMA_VERSION:
         return
     for name, step in (_step_mapping(document.get("simulation")) or {}).items():
         composition = step.get("composition") if isinstance(step, Mapping) else None
@@ -348,6 +374,48 @@ def _add_v7_initial_loadings(simulation: dict[str, Any], label: str) -> None:
         composition[INITIAL_SOLID_LOADINGS_FIELD] = None
 
 
+def refuse_vacuum_outlet_before_v9(document: Any, label: str) -> None:
+    """Refuse the schema-9 vacuum-outlet `flow` fields in a document of schema 1 to 8.
+
+    Called before an old document's shape is checked, so that the error names
+    the schema version rather than an unknown field.
+    """
+    if not isinstance(document, Mapping):
+        return
+    version = document.get("schema_version")
+    if isinstance(version, bool) or version not in SUPPORTED_SCHEMA_VERSIONS:
+        return
+    if version > PRE_VACUUM_OUTLET_SCHEMA_VERSION:
+        return
+    for name, step in (_step_mapping(document.get("simulation")) or {}).items():
+        flow = step.get("flow") if isinstance(step, Mapping) else None
+        if isinstance(flow, Mapping):
+            _refuse_v9_flow_fields(flow, name, label)
+
+
+def _refuse_v9_flow_fields(flow: Mapping[str, Any], step: str, label: str) -> None:
+    for field in V8_VACUUM_OUTLET_FIELDS:
+        if field in flow:
+            raise ConfigurationError(
+                f"`simulation.cycle.steps.{step}.flow.{field}` in {label} is new in pyDAC 3.2.0; "
+                f"set `schema_version` to {CURRENT_SCHEMA_VERSION}."
+            )
+
+
+def _add_v8_vacuum_outlet_fields(simulation: dict[str, Any], label: str) -> None:
+    """Give every stated `flow` group of a pre-v9 document the valve and null pump fields.
+
+    The valve is what such a step computed with; steps or groups the document
+    does not state keep the preset semantics.
+    """
+    for name, step in (_step_mapping(simulation) or {}).items():
+        flow = step.get("flow") if isinstance(step, dict) else None
+        if not isinstance(flow, dict):
+            continue
+        _refuse_v9_flow_fields(flow, name, label)
+        flow.update(deepcopy(V8_VACUUM_OUTLET_FIELDS))
+
+
 #: Before schema v4 the column size was always given by the volume and the aspect ratio.
 V3_GEOMETRY_SPECIFIED_BY = "volume_aspect_ratio"
 
@@ -366,11 +434,52 @@ def _add_v3_geometry_input(simulation: dict[str, Any], label: str) -> None:
     geometry["specified_by"] = V3_GEOMETRY_SPECIFIED_BY
 
 
+def refuse_feed_blower_before_v10(document: Any, label: str) -> None:
+    """Refuse each new field even if null in schemas 1..9, before shape checks."""
+    if not isinstance(document, Mapping):
+        return
+    version = document.get("schema_version")
+    if isinstance(version, bool) or version not in SUPPORTED_SCHEMA_VERSIONS or version > PRE_FEED_BLOWER_SCHEMA_VERSION:
+        return
+    for name, step in (_step_mapping(document.get("simulation")) or {}).items():
+        flow = step.get("flow") if isinstance(step, Mapping) else None
+        if isinstance(flow, Mapping):
+            for field in V9_FEED_BLOWER_FIELDS:
+                if field in flow:
+                    raise ConfigurationError(f"`simulation.cycle.steps.{name}.flow.{field}` in {label} is new in pyDAC 3.2.0; set `schema_version` to {CURRENT_SCHEMA_VERSION}.")
+
+
+def pre_feed_blower_v9_vocabulary(current_profile: Mapping[str, Any]) -> dict[str, Any]:
+    """Complete schema-9 vocabulary, retaining all vacuum and standby fields."""
+    vocabulary = pre_output_schedule_v10_vocabulary(current_profile)
+    vocabulary["schema_version"] = PRE_FEED_BLOWER_SCHEMA_VERSION
+    for step in (_step_mapping(vocabulary.get("simulation")) or {}).values():
+        flow = step.get("flow") if isinstance(step, dict) else None
+        if isinstance(flow, dict):
+            for field in V9_FEED_BLOWER_FIELDS:
+                flow.pop(field, None)
+    return vocabulary
+
+
+def pre_vacuum_outlet_v8_vocabulary(
+    current_profile: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Return the schema-v8 complete-case shape for structural validation."""
+    vocabulary = pre_feed_blower_v9_vocabulary(current_profile)
+    vocabulary["schema_version"] = PRE_VACUUM_OUTLET_SCHEMA_VERSION
+    for step in (_step_mapping(vocabulary.get("simulation")) or {}).values():
+        flow = step.get("flow") if isinstance(step, dict) else None
+        if isinstance(flow, dict):
+            for field in V8_VACUUM_OUTLET_FIELDS:
+                flow.pop(field, None)
+    return vocabulary
+
+
 def pre_initial_loading_v7_vocabulary(
     current_profile: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Return the schema-v7 complete-case shape for structural validation."""
-    vocabulary = deepcopy(dict(current_profile))
+    vocabulary = pre_vacuum_outlet_v8_vocabulary(current_profile)
     vocabulary["schema_version"] = PRE_INITIAL_LOADING_SCHEMA_VERSION
     for step in (_step_mapping(vocabulary.get("simulation")) or {}).values():
         composition = step.get("composition") if isinstance(step, dict) else None
@@ -528,10 +637,15 @@ def _legacy_kinetic_name(species: str, name: Any) -> str:
 
 
 __all__ = [
+    "PRE_FEED_BLOWER_SCHEMA_VERSION",
+    "V9_FEED_BLOWER_FIELDS",
+    "pre_feed_blower_v9_vocabulary",
+    "refuse_feed_blower_before_v10",
     "CURRENT_SCHEMA_VERSION",
     "LEGACY_SCHEMA_VERSION",
     "PRE_OUTLET_SCHEMA_VERSION",
     "PRE_SORBENT_MAPPING_SCHEMA_VERSION",
+    "PRE_VACUUM_OUTLET_SCHEMA_VERSION",
     "PRE_VALVE_RENAME_SCHEMA_VERSION",
     "PRE_WALL_RENAME_SCHEMA_VERSION",
     "SOLVER_CHOICE_SCHEMA_VERSION",
@@ -543,12 +657,45 @@ __all__ = [
     "V6_HEATS_OF_ADSORPTION_J_MOL",
     "V6_SORBENT_DECLARATIONS",
     "V7_SORBENT_FIELDS",
+    "V8_VACUUM_OUTLET_FIELDS",
     "legacy_v1_vocabulary",
     "pre_outlet_v3_vocabulary",
     "pre_sorbent_mapping_v6_vocabulary",
+    "pre_vacuum_outlet_v8_vocabulary",
     "pre_valve_rename_v4_vocabulary",
     "pre_wall_rename_v5_vocabulary",
+    "refuse_vacuum_outlet_before_v9",
     "solver_choice_v2_vocabulary",
     "upgrade_experiment_document",
     "v3_outlet_group",
 ]
+
+
+def refuse_output_schedule_before_v11(document: Any, label: str) -> None:
+    if not isinstance(document, Mapping):
+        return
+    version = document.get("schema_version")
+    if isinstance(version, bool) or version not in SUPPORTED_SCHEMA_VERSIONS or version > 10:
+        return
+    simulation = document.get("simulation")
+    if not isinstance(simulation, Mapping):
+        return
+    grid = simulation.get("grid")
+    if isinstance(grid, Mapping) and "output_schedule" in grid:
+        raise ConfigurationError(f"simulation.grid.output_schedule in {label} is new in pyDAC 3.2.0; set `schema_version` to {CURRENT_SCHEMA_VERSION}.")
+    for name, step in (_step_mapping(simulation) or {}).items():
+        flow = step.get("flow") if isinstance(step, Mapping) else None
+        if isinstance(flow, Mapping) and "ads_outlet_overpressure_Pa" in flow:
+            raise ConfigurationError(f"steps.{name}.flow.ads_outlet_overpressure_Pa in {label} is new in pyDAC 3.2.0; set `schema_version` to {CURRENT_SCHEMA_VERSION}.")
+
+
+def pre_output_schedule_v10_vocabulary(current_profile: Mapping[str, Any]) -> dict[str, Any]:
+    vocabulary = deepcopy(dict(current_profile))
+    vocabulary["schema_version"] = PRE_OUTPUT_SCHEDULE_SCHEMA_VERSION
+    simulation = vocabulary.get("simulation", {})
+    if isinstance(simulation.get("grid"), dict):
+        simulation["grid"].pop("output_schedule", None)
+    for step in (_step_mapping(simulation) or {}).values():
+        if isinstance(step, dict) and isinstance(step.get("flow"), dict):
+            step["flow"].pop("ads_outlet_overpressure_Pa", None)
+    return vocabulary

@@ -187,7 +187,8 @@ of a frozen case), pyDAC computes the other pair again from the new input.
 Leaving a field out of a preset always means "use the built-in default". Writing `null`
 is a different statement, allowed only where the field accepts it:
 
-- **Step fields:** `null` means "inherit": the field keeps the value it has from the layer
+- **Step fields:** `null` means "inherit" (one exception: the one-way outlet, under
+  *Switches*): the field keeps the value it has from the layer
   below (the built-in default, or the preset), exactly as if it were left out. It does not
   mean "take the previous step's state": every step after `startup` starts from the state
   the previous step left anyway, and `startup` starts from its own initial values
@@ -202,11 +203,13 @@ is a different statement, allowed only where the field accepts it:
   bed; `co2` is the same name as `CO2`). Every adsorbate needs its value: a mapping that
   leaves one out or names one twice is refused, and so is the field on any other step
   ([manual 01 §4.2](../manual/01_inputs.md#42-a-step-ten-names-seven-groups-fixed-order)).
-  Like every step field, a `null` setting inherits: it does not undo a mapping that the
-  preset states. Remove it from the preset instead.
+  As on the other step fields, a `null` setting inherits: it does not undo a mapping that
+  the preset states. Remove it from the preset instead.
 - **Switches:** `null` turns the feature off, for example `execution.extra_tag`,
-  `execution.cycle_steps` (the default cycle), `wall.overall_htc_override_W_m2K` or
-  `bed.material`.
+  `execution.cycle_steps` (the default cycle), `wall.overall_htc_override_W_m2K`,
+  `bed.material` or the four `grid.output_schedule` fields. The one step-field switch is
+  `flow.ads_outlet_overpressure_Pa` on `ads` and `startup`: `null` there switches the one-way
+  outlet off, even when the preset sets it.
 - **The bed block:** `bed = null` stands for the built-in packed bed.
 - **Computed geometry:** the pair of the column size that `geometry.specified_by` does
   not name is computed; leave it `null` ([Column size](#column-size)).
@@ -249,10 +252,140 @@ pydac validate --set steps.s_purge.outlet.collect_product=false --set steps.s_pu
 The rules and their effect on the KPIs are in [01 — Inputs](../manual/01_inputs.md) and
 [06 — Post-processing](../manual/06_post_processing.md).
 
+## The vacuum outlet: valve or pump
+
+The four vacuum steps (`blow`, `heat`, `w_purge`, `w_des`) draw their outlet in one of two
+ways, chosen per step with `flow.vacuum_outlet_model`:
+
+| Mode | What it models | When to use it |
+|---|---|---|
+| `"valve"` (default) | a valve to a vacuum reservoir that takes any flow | quick studies; the vacuum is never a bottleneck |
+| `"vacuum_pump"` | a pump model with finite volumetric capacity and pressure control near the step's `outlet_pressure_Pa` | when pump size may limit blowdown or gas removal during heating/desorption, and when standby electricity matters |
+
+Every step uses the valve by default, as in pyDAC 3.1.0. This preserves the outlet-law choice; the
+efficiency and flash corrections listed in the 3.2.0 changelog still change some energies and
+product KPIs. The pump outlet is available only on a 1D grid (`grid.nr = 1`) and only for `blow`,
+`heat`, `w_purge` and `w_des`. It must be selected separately on each step that uses it.
+
+### Using the pump
+
+1. **Choose the bed and the steps.** Set `grid.nr = 1`. The example below uses a 0.1 m3 bed and
+   puts the pump on `blow` and `heat`. The built-in bed is 0.001 m3; change the example's bed
+   volume and pump speed together if you want to keep the same pumping capacity per bed volume.
+   The other steps keep their own outlet settings.
+2. **Choose the pressure.** Set `steps.STEP.pressure.outlet_pressure_Pa`, in absolute Pa, on each
+   pump step. The control reduces gas removal as the last cell approaches this setpoint. It does
+   not supply gas if cooling or adsorption lowers the pressure, and it cannot hold the setpoint
+   when the bed releases gas faster than the pump can remove it.
+3. **Choose the pump speed.** `vacuum_pump_speed_m3_s` is the whole pump's asymptotic inlet
+   volumetric speed S0, not a speed per bed volume. If you specify a capacity s_V in bed volumes
+   per hour, use `S0 = s_V * bed_volume_m3 / 3600`. For example, 1500/h gives 0.0417 m3/s for a
+   0.1 m3 bed, or 0.000417 m3/s for the built-in 0.001 m3 bed. Use a suitable vendor speed curve
+   to choose the approximation; this parameter alone does not identify a pump technology.
+4. **Check the ultimate pressure and control band.** `vacuum_pump_ultimate_pressure_Pa` must be
+   nonnegative and lower than the setpoint; its resolved default is 0 Pa. The speed is
+   `S0 * (1 - p_ult/p)`. `vacuum_setpoint_band_fraction` defaults to 0.001 and must be between
+   1e-6 and 0.1. At a 20000 Pa setpoint, the default control band extends to 20020 Pa.
+5. **Check a pressure-based stop.** For a step that stops when pressure falls below a target, put
+   that target above the band's upper edge. At 20000 Pa, `threshold_source=p_out` and
+   `threshold_offset=100` give a 20100 Pa target. The offset is in Pa: recompute it when you
+   change the setpoint or band. A target inside the band can be reached slowly or be pre-empted
+   by the plateau/time-cap stop. Read any validation warning before running.
+6. **Choose the standby behavior** using the next section. With the built-in defaults the idle
+   mode is `off`, so there is no standby energy. A continuously running pump needs its declared
+   mode and vendor standby power.
+
+This example validates and saves a reusable preset:
+
+```bash
+pydac validate --set grid.nr=1 --set geometry.volume_m3=0.1 \
+  --set steps.blow.pressure.outlet_pressure_Pa=20000 \
+  --set steps.blow.flow.vacuum_outlet_model=vacuum_pump \
+  --set steps.blow.flow.vacuum_pump_speed_m3_s=0.0417 \
+  --set steps.blow.flow.vacuum_pump_ultimate_pressure_Pa=0 \
+  --set steps.blow.termination.threshold_source=p_out \
+  --set steps.blow.termination.threshold_offset=100 \
+  --set steps.heat.pressure.outlet_pressure_Pa=20000 \
+  --set steps.heat.flow.vacuum_outlet_model=vacuum_pump \
+  --set steps.heat.flow.vacuum_pump_speed_m3_s=0.0417 \
+  --export-preset pump.json --validate
+pydac steps --config pump.json
+```
+
+The second command runs the default step sequence with this preset. For a short trial, reduce the
+step horizons as in the running guide. Validation alone does not start a simulation. Repeat the
+pump and pressure settings for `w_purge` or `w_des` if your cycle uses them; the pump outlet is not
+available on the steam-fed steps `s_purge` and `s_des`.
+
+To list the six pump fields and their raw defaults:
+
+```bash
+pydac validate --show-settings | grep heat.flow.vacuum
+```
+
+With the pump selected, `blowdown_valve_conductance` is ignored; it does not limit pump capacity.
+An explicit `null` on a pump field inherits the lower layer, so it cannot clear a pump value
+already supplied by your preset (see [`null` and omitted fields](#null-and-omitted-fields)).
+
+### What the pump draws while it waits
+
+During heating or desorption the pump often holds the bed at the setpoint and removes very
+little gas (it falls behind only when the bed releases more gas than it can pump). A real pump
+still draws electricity in that time, and how much depends on the plant. You declare it with
+two fields, `vacuum_pump_idle_mode` and `vacuum_pump_idle_power_W`. Pick the mode by asking two
+questions about your pump:
+
+- **Does it stop between interventions, with a valve that isolates it?** Then the mode is
+  `"off"`: no standby power. This is the default and the lower bound, the convention of most
+  vacuum swing adsorption studies.
+- **If it keeps running, does it have a variable-speed drive (an inverter)?**
+  - yes: `"minimum_speed"`, with the power the pump draws at its minimum speed;
+  - no: `"fixed_speed"`, with the power it draws at full speed against a closed valve, i.e.
+    at its ultimate pressure.
+
+| `vacuum_pump_idle_mode` | `vacuum_pump_idle_power_W` |
+|---|---|
+| `"off"` or not set | leave it unset |
+| `"minimum_speed"` | required: the vendor's absorbed power at minimum speed [W] |
+| `"fixed_speed"` | required: the vendor's absorbed power at the ultimate pressure [W] |
+
+With the built-in defaults, leaving the idle mode unset gives `"off"`. When a preset already
+states a mode or power, omitting an override or setting it to `null` keeps that preset value. To
+return to `"off"`, use a preset whose idle-power field resolves to null; a null override cannot
+clear an inherited power (see [`null` and omitted fields](#null-and-omitted-fields)).
+
+Read the power from the absorbed-power curve in your pump's catalogue; pyDAC has no built-in
+value. If you scale the pump speed with the bed, scale this power with it. For example, for a
+fixed-speed pump that draws 3.6 kW at its ultimate pressure:
+
+```bash
+pydac validate --set grid.nr=1 --set geometry.volume_m3=0.1 \
+  --set steps.heat.flow.vacuum_outlet_model=vacuum_pump \
+  --set steps.heat.flow.vacuum_pump_speed_m3_s=0.0417 \
+  --set steps.heat.flow.vacuum_pump_idle_mode=fixed_speed \
+  --set steps.heat.flow.vacuum_pump_idle_power_W=3600 \
+  --validate
+```
+
+What it changes:
+
+- **Only the vacuum energy** (`Vacuum Pump Energy [MJ]`). The pressures, flows and masses stay
+  the same, up to the solver tolerance.
+- **It can be large.** A heating step held at the setpoint for 30 minutes with a 2 kW standby
+  power adds 3.6 MJ, against a few kJ of work on the gas. A blowdown gets a much smaller
+  increment, because the pump works at full speed for most of it, but not always a negligible
+  one: on a 13X test chain 2 kW add about 19 % to its vacuum energy.
+- **`"minimum_speed"` or `"fixed_speed"` without a power is refused**, and so is a power with
+  `"off"`, so a case cannot silently charge zero.
+
+The formula and its assumptions are in
+[05 — Cycle steps §2.7](../manual/05_cycle_steps.md#27-vacuum-pump-outlet-1d-opt-in), the field
+rules in [01 — Inputs](../manual/01_inputs.md).
+
 ## Fingerprint and run folder
 
 The fingerprint is a hash of the complete resolved case. Its first eight characters name
-the run folder, for example `simulation_results/cyclic_mode/packed_bed_7a4930a5` for the
+the run folder, for example `simulation_results/cyclic_mode/packed_bed_d3aac08f` for the
 quick-start case of [Quick start](02_quickstart.md).
 
 - Every field counts, including `execution.output_root` and `execution.extra_tag`:
@@ -279,7 +412,7 @@ python -c "import pydac, pathlib; print(pathlib.Path(pydac.__file__).parent / 'c
 ```
 
 From pyDAC 3.0.0 on, the schema of each release is also published at its release tag:
-`https://raw.githubusercontent.com/process-intensification-lab/pyDAC/v3.1.0/src/pydac/config/json_schema/experiment.schema.json`.
+`https://raw.githubusercontent.com/process-intensification-lab/pyDAC/v3.2.0/src/pydac/config/json_schema/experiment.schema.json`.
 Point your editor's JSON schema setting for your case files at either location. Do not
 add a `$schema` key to a case: the case format has no such field, and the case is refused.
 

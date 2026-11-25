@@ -36,6 +36,10 @@ DERIVED = "derived"  # computed by the derivation stage from other fields
 DISABLED = "disabled"  # kept as None; the feature is switched off
 
 NULL_POLICY_BY_PATH = {
+    **{("simulation", "grid", "output_schedule", field): DISABLED
+       for field in ("dense_start_s", "dense_start_points", "first_output_s", "max_output_spacing_s")},
+    ("simulation", "cycle", "steps", "ads", "flow", "ads_outlet_overpressure_Pa"): DISABLED,
+    ("simulation", "cycle", "steps", "startup", "flow", "ads_outlet_overpressure_Pa"): DISABLED,
     ("simulation", "bed"): CANONICAL,
     ("simulation", "geometry", "length_m"): DERIVED,
     ("simulation", "geometry", "radius_m"): DERIVED,

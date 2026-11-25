@@ -166,9 +166,14 @@ def resolve_settings(
                 f"received {expression!r}."
             )
         path, raw_value = expression.split("=", 1)
+        try:
+            value = _parse_cli_value(raw_value.strip())
+        except SettingsError as exc:
+            # Name the setting: the bare message does not say which `--set` failed.
+            raise SettingsError(f"Setting `{path.strip()}`: {exc}") from exc
         # An object value reads like the same block in Python: its fields merge
         # into the case, and only an opaque block is replaced whole.
-        items = _flatten_mapping({path.strip(): _parse_cli_value(raw_value.strip())})
+        items = _flatten_mapping({path.strip(): value})
         for canonical, value in items.items():
             if canonical in resolved:
                 raise SettingsError(f"Setting path {canonical!r} was supplied twice.")

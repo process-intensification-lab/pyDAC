@@ -136,6 +136,13 @@ def test_unconstrained_warning_fires_only_without_an_active_constraint(constrain
             for w in caught] == ([True] if warns else [])
 
 
+def test_the_steam_condensation_constraint_reads_the_preheat_margin():
+    constraints = nsga2.NSGA2Constraints(steam_condensation=True)
+    cold = {"T_bed_min_preheat": 370.0, "T_steam_condensation": 373.0}
+    assert constraints.build_g(cold, is_steam_assisted=False) == []
+    assert constraints.build_g(cold, is_steam_assisted=True) == [3.0]
+
+
 def test_an_unconstrained_campaign_warns_when_it_starts(monkeypatch, tmp_path):
     monkeypatch.setattr(nsga2, "TVSAOptimizationProblem", CampaignToyProblem)
     termination = nsga2.NSGA2TerminationConfig(mode="fixed_generations")
@@ -382,6 +389,29 @@ def test_a_campaign_on_a_cycle_without_desorption_is_refused(tmp_path):
         nsga2.NSGA2RunConfig(
             experiment=pydac.load_case(settings={"execution.cycle_steps": ["ads", "blow", "heat", "cool", "press"]}),
             base_folder=str(tmp_path), bounds=bounds, constraints=nsga2.NSGA2Constraints())
+
+
+@pytest.mark.parametrize("steps, refused", [
+    (["ads", "blow", "heat", "s_des", "cool", "press"], False),
+    (["ads", "blow", "w_purge", "s_des", "cool", "press"], False),
+    # Steam on a bed that no step preheated: nothing can keep it from condensing.
+    (["ads", "blow", "s_des", "cool", "press"], True),
+    # Wall-heated desorption: the constraint is not active, nothing to refuse.
+    (["ads", "blow", "w_des", "press"], False),
+])
+def test_steam_condensation_without_preheating_is_refused(tmp_path, steps, refused):
+    import pydac
+
+    def build():
+        return nsga2.NSGA2RunConfig(
+            experiment=pydac.load_case(settings={"execution.cycle_steps": steps}),
+            base_folder=str(tmp_path), bounds={name: tuple(pair) for name, pair in BOUNDS.items()},
+            constraints=nsga2.NSGA2Constraints(steam_condensation=True))
+    if refused:
+        with pytest.raises(ValueError, match="has neither"):
+            build()
+    else:
+        build()
 
 
 def test_a_checkpoint_without_a_desorption_step_is_refused_on_resume(monkeypatch, tmp_path):

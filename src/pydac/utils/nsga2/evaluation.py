@@ -74,8 +74,11 @@ def extract_candidate_kpis(cycle_kpis) -> dict[str, Any]:
         "productivity": float(cycle_kpis.productivity()),
         "purity": float(purity_metrics["purity_wet"]),
         "oxygen_ppm": float(purity_metrics["oxygen_ppm"]),
+        # NaN without a heat/w_purge step: no preheating, no preheating constraint.
         "T_bed_min_preheat": float(
             preheating_temperatures["bed_minimum_K"]
+            if preheating_temperatures["bed_minimum_K"] is not None
+            else "nan"
         ),
         # NaN for a mixture without H2O: no steam, no condensation limit.
         "T_steam_condensation": float(

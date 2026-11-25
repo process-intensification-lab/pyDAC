@@ -1,5 +1,120 @@
 # Changelog
 
+## 3.2.0 (unreleased)
+
+### Added
+- An optional vacuum pump of finite speed on the outlet of `blow`, `heat`, `w_purge` and `w_des`,
+  selected per step with `flow.vacuum_outlet_model = "vacuum_pump"` on a 1D grid. The default
+  outlet stays `"valve"`. `vacuum_pump_speed_m3_s` is the whole pump's asymptotic inlet speed and
+  `vacuum_pump_ultimate_pressure_Pa` its ultimate pressure (default 0 Pa). A pressure control
+  reduces the removal near the step's `outlet_pressure_Pa`, over a band
+  `vacuum_setpoint_band_fraction` (default 1e-3, range [1e-6, 0.1]). When the bed releases gas
+  faster than the pump can remove it, the pressure can stay above that band; the pump never
+  supplies gas back. A null step setting inherits the lower layer, so it cannot clear a pump value
+  set there. See guide 03 and manual 05 §2.7.
+- Standby electricity of that pump: `vacuum_pump_idle_mode` is `"off"` by default, or
+  `"minimum_speed"` / `"fixed_speed"` with a required positive vendor value
+  `vacuum_pump_idle_power_W`. The added power is `P_idle * (1 - g)`, with `g` the control's
+  throughput fraction; with `"off"` nothing is added. It is an averaged energy model, not a
+  vendor part-load curve. See manual 06 §8.2.
+- An optional feed blower for 1D pressurization, `flow.press_inlet_model = "feed_blower"`: a
+  supply of finite capacity `feed_blower_flow_m3_s` (positive, at feed conditions) with a smooth
+  closing band `feed_blower_band_fraction` (default 1e-3, range [1e-6, 0.1]). It never takes gas back.
+  With the blower, the press valve conductance is ignored, even when it is zero. Its supply work,
+  from ambient to the feed header (efficiency 0.7, suction at the feed temperature, zero at or
+  below ambient), is the compression work of `press`, in place of the valve pressure-drop
+  estimate. Saved profiles rebuild the inlet
+  with the same law.
+- An optional one-way outlet for 1D `ads` and `startup`:
+  `flow.ads_outlet_overpressure_Pa` is the outlet-cell overpressure at the nominal feed velocity
+  (bed-referred), and fixes a linear outlet law `u_out = K max(p - p_out, 0)` that never lets gas
+  back in. Null (the default) keeps the fixed-pressure outlet. Steps with this outlet run CVODE
+  BDF up to order 2, which is A-stable; every other step keeps order 3.
+- `simulation.grid.output_schedule`: denser saved outputs at the start of each step (a geometric
+  window, `dense_start_s` with `dense_start_points` and `first_output_s`) and a maximum spacing
+  between saved outputs (`max_output_spacing_s`). They are added to the usual `nt` outputs; all
+  four null (the default) saves exactly the outputs of 3.1.0. Saved outputs are observations:
+  CVODE does not stop at each of them, but asking for them can shift its adaptive steps, so
+  results can change at the level of the solver tolerances. A denser output schedule can catch a
+  brief outlet reflux that coarser saved outputs miss; condenser reporting then refuses the run,
+  because the product-line model does not describe reflux.
+- Validation warnings for a pump step that stops on a falling pressure target at or below the
+  upper edge of its control band, and for a blower step that stops on a rising target at or above
+  the lower edge of its band: the step can stop on the pressure plateau or at the time cap before
+  reaching the target. Place the target outside the band.
+
+### Changed
+- Case schema 11 (3.1.0 used schema 8). A document of pyDAC 3.1.0 or older (schema 8 or lower) is
+  migrated: every step keeps the default valve outlet and valve pressurization, the output
+  schedule is off and the one-way outlet is off, so a migrated case describes the same plant as
+  before. A field introduced in 3.2.0 is refused in such a document, even when it is null; set
+  `schema_version` to 11 to use it.
+- On a step with a closed inlet (`blow`, `heat`, `w_purge`, `w_des` with zero inlet flow), the
+  vented amount of each species is the decrease of the bed's inventory of that species over the
+  step (plus the injected steam for H2O). In a mixture without H2O, the collected product of CO2
+  and of each inert gas is that decrease too. Before, the CO2 product was the time integral of the
+  saved outlet stream, which depends on how finely the outputs are saved, and the inert gases used
+  the absolute value of their inventory change. For those steps the integral and the solver's
+  accumulator are still saved as diagnostics (`mass.outlet.saved.simpson`,
+  `mass.outlet.accumulator`); KPIs do not use them. In a mixture with H2O the collected product
+  is unchanged: CO2 and water come from the condenser and vacuum-discharge flashes of the saved
+  outlet stream, and the inert gases from their inventory change.
+- The compression and vacuum work no longer give energy back: the flow and the pressure-ratio
+  factor are each clamped at zero, so a moment of reversed flow or of expansion adds no negative
+  work. The same holds for the pump work behind the condenser. Feed-blower supply work and pump
+  standby power keep their own laws.
+- These two changes and the fixes below move the energy and product figures of existing cases,
+  and the integrated energy states take part in the solver's error control, so other outputs can
+  move slightly too, even with every new option off.
+
+### Fixed
+- Maruyama et al. (2020), Eq. 10, is evaluated with pressure in atm: 101325 Pa instead of 1e5 Pa. At
+  the same gas state, the vacuum gas-work term increases by approximately 0.064 % at 1 atm, 0.448 %
+  at 10 kPa and 1.108 % at 1 kPa, for valve and pump outlets alike. A whole step's change depends on
+  its pressure history.
+- The condenser and vacuum-discharge CO2/H2O flashes conserve CO2 in steam-rich feeds. The old
+  separator shortcut for `z_CO2 < 1e-3` returned pure liquid water and discarded that feed's CO2
+  whenever the separator was called. The corrected flash keeps all feed in the liquid below the
+  bubble point and splits it between liquid and vapor in the two-phase region. At 278.15 K and 20
+  kPa the equilibrium liquid CO2 fraction is about 2.2e-4. Recovery, productivity and specific
+  energy of steam cases change: the built-in DAC case with `grid.nr=1` and `grid.nz=25`, converged
+  at cycle 3, changes from 74.6 % to 77.6 % recovery, with essentially unchanged purity.
+- Every product-line flash uses the same Henry/Raoult K values for its liquid, vapor and two-phase
+  tests. This removes a mismatch between the former ideal dew-point test and the split; two
+  near-dew examples at 278.15 K/20 kPa and 298.15 K/1 atm lost about 6.1e-5 and 1.9e-4 mol CO2 per
+  mol of feed. The cooling-water duty uses the same checked flash. Invalid inputs, failed fugacity
+  calculations and non-finite or unbalanced results raise errors instead of silently becoming zero
+  product or zero condensate. A feed CO2 fraction slightly outside [0, 1], which the outlet-face
+  extrapolation can give next to a steep outlet gradient, is flashed as given so the balances
+  close; more than 1e-3 outside gives a warning.
+- Recovery is referred to the bed's net CO2 uptake from the feed over adsorption and
+  pressurization, no longer over adsorption alone; the vented percentage uses the same reference,
+  and the CSS summary reports the feed uptake. Pressurization takes feed gas through a closed
+  outlet, and that CO2 was missing from the denominator: a cycle pressurized with 12 % CO2 after a
+  5 kPa vacuum reported 104 % recovery (now 97.3 %). DAC cycles pressurized with air change by
+  about -0.001 percentage points.
+- The CSS summary report, the KPI outputs of a run and the NSGA-II candidate KPIs no longer fail
+  on a cycle without `heat` or `w_purge` (e.g. `ads -> blow -> w_des -> press`):
+  `preheating_temperatures()` returns `None` for both temperatures, the report omits the
+  preheating rows, and an NSGA-II campaign with the `steam_condensation` constraint on such a
+  steam cycle is refused before it starts (no step preheats the bed, so the constraint cannot hold).
+- A gas of a single species (e.g. a pure-N2 start) no longer gives NaN in Blanc's mixture
+  diffusivity. Where the law is 0/0, the species takes the equal-share limit over the other
+  species: the binary diffusivity for two gases, the harmonic mean of the binary diffusivities for
+  more. Every value the law can evaluate is unchanged.
+- A `ValueError` from the model equations at a non-physical trial state of the solver is rejected,
+  and CVODE retries, up to 1000 rejections per solve. A `ValueError` at a
+  physical state is still raised. Non-finite saved states, times or event outputs mark the solve
+  as failed even if the solver reports success.
+- A refused CLI `--set` value names its setting and keeps the original error, for example
+  "Setting `steps.blow.flow.vacuum_pump_idle_power_W`: Non-standard JSON constant 'NaN' is not
+  allowed."
+- `execution.cycle_options[n].termination_mode` is normalized and checked like the global and the
+  per-step modes (e.g. `"EVENT"` is `event`, an unknown mode is refused). Before, it was used as
+  written, so a value spelled otherwise did not select the mode it named.
+- NSGA-II imports `StarmapParallelization` from `pymoo.parallelization`, its supported location,
+  so pymoo no longer warns that the old import path is deprecated.
+
 ## 3.1.0
 
 ### Added

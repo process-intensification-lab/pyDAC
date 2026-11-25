@@ -19,7 +19,7 @@ temperature-vacuum swing adsorption (TVSA) cycle. pyDAC reports process key perf
 indicators (KPIs) and optimizes operating conditions with the NSGA-II genetic algorithm
 (non-dominated sorting genetic algorithm II).
 
-pyDAC 3.1.0, development status Beta. MIT license.
+pyDAC 3.2.0, development status Beta. MIT license.
 
 > **Using pyDAC? Make sure you always run the latest version.** pyDAC is under active
 > development and new releases come out often. To be notified when a new version
@@ -222,7 +222,8 @@ print(f"CO2 recovery: {100 * kpis.recovery('CO2'):.1f} %")
 print(f"Productivity: {kpis.productivity():.2f} kg CO2 per m3 bed per day")
 ```
 
-`pydac.load_case(path, exact=True)` runs a complete case exactly, as `--case` does. The
+`pydac.load_case(path, exact=True)` loads a complete case exactly, as `--case` does; pass it
+to `pydac.run_css` or `pydac.run_steps` to run it. The
 supported API is the set of names in `pydac.__all__`: `load_case`, `export_case`,
 `export_settings`, `run_steps`, `run_css`, `run_nsga2`, `resume`, `report`, `get_started`,
 `RunResult`, `ConfigurationError`, `RunRefused`, `ExperimentConfig`, `CycleDataLoader`,
@@ -289,7 +290,13 @@ ChemRxiv:
 > M. Galanti, I. Roghair, M. van Sint Annaland. pyDAC: Open-Source two-dimensional modeling of s-TVSA for direct air capture: experimental assessment and validity of one-dimensional approximations.
 > ChemRxiv (2026). [doi:10.26434/chemrxiv.15010382/v1](https://doi.org/10.26434/chemrxiv.15010382/v1)
 
-and the software itself with the metadata in [`CITATION.cff`](CITATION.cff). Each GitHub release
+The results in the paper were obtained with pyDAC 3.1.0. Later versions change some models and
+KPIs described in the paper and its Supplementary Information (from 3.2.0: the vacuum and
+compression work, the product flash and the recovery reference; see the
+[changelog](CHANGELOG.md)), so their figures differ. To reproduce the paper, install that version:
+`python -m pip install "pydac3==3.1.0"`.
+
+Cite the software itself with the metadata in [`CITATION.cff`](CITATION.cff). Each GitHub release
 has its own DOI on Zenodo; [10.5281/zenodo.23319859](https://doi.org/10.5281/zenodo.23319859)
 always resolves to the latest version.
 

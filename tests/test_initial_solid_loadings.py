@@ -25,6 +25,7 @@ from pydac.core.column_model_factory import ColumnModelFactory
 from pydac.inputs.case_io import case_fingerprint, load_case, validate_case_document
 from pydac.inputs.defaults import default_profile
 from pydac.inputs.defaults.steps import INITIAL_SOLID_LOADINGS_FIELD
+from tests.test_vacuum_manifold import without_vacuum_outlet_fields
 
 
 CASE = "tests/cases/v3_smoke_startup.json"
@@ -33,10 +34,13 @@ LOADINGS = {"CO2": 0.5, "H2O": 1.25}
 
 
 def without_initial_solid_loadings(document):
-    """Drop the field from every step: the shape of schema 7 and every earlier one."""
+    """Drop the field from every step: the shape of schema 7 and every earlier one.
+
+    Those schemas also predate the schema-9 vacuum-outlet fields.
+    """
     for step in document["simulation"]["cycle"]["steps"].values():
         del step["composition"][INITIAL_SOLID_LOADINGS_FIELD]
-    return document
+    return without_vacuum_outlet_fields(document)
 
 
 def _without_the_field(document):
@@ -167,7 +171,7 @@ def test_the_json_schema_accepts_the_field():
 # --- Sol schema-8 audit (S8-001..003) ---------------------------------------
 
 
-@pytest.mark.parametrize("version", range(1, CURRENT_SCHEMA_VERSION))
+@pytest.mark.parametrize("version", range(1, PRE_INITIAL_LOADING_SCHEMA_VERSION + 1))
 def test_an_older_frozen_case_with_the_field_names_schema_8(version):
     complete = validate_case_document(load_experiment(CASE))
     complete["schema_version"] = version

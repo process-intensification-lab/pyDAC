@@ -40,7 +40,7 @@ def test_the_file_states_only_the_settings_and_loads_the_same_case(tmp_path):
     target = tmp_path / "sub" / "preset.json"
     assert pydac.export_settings(TWEAKS, target) == target
     assert json.loads(target.read_text()) == {
-        "schema_version": 8,
+        "schema_version": 11,
         "simulation": {
             "grid": {"nz": 7},
             "mixture": {"adsorbates": ["CO2", "H2O"]},
@@ -91,7 +91,8 @@ def test_a_base_preset_is_kept_under_the_settings(tmp_path):
     settings = {"grid.nz": 7, "steps.startup.thermal.jacket_temperature_K": None}
     target = pydac.export_settings(settings, tmp_path / "preset.json", base=base)
     written = json.loads(target.read_text())["simulation"]
-    assert written["grid"] == {"nz": 7, "nr": 3}
+    from pydac.utils.output_schedule import SCHEDULE_DEFAULTS
+    assert written["grid"] == {"nz": 7, "nr": 3, "output_schedule": SCHEDULE_DEFAULTS}
     # A null setting inherits what it sits on: here the base value, not the default.
     assert written["cycle"]["steps"]["startup"]["thermal"]["jacket_temperature_K"] == 330.0
     assert _same_case(target, base, settings)

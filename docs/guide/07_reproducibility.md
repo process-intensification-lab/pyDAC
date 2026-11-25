@@ -13,7 +13,7 @@ A result is reproducible when someone else can run the same case with the same s
 get the same numbers. pyDAC helps in four ways: the frozen case fixes every input, the
 fingerprint names it, every run records the software that produced it, and the
 qualification lock fixes the whole environment. This page shows how to use each, and what
-pyDAC 3.1.0 promises across versions.
+pyDAC 3.2.0 promises across versions.
 
 The examples use the small 1D case of the [quick start](02_quickstart.md), in a new, empty
 folder:
@@ -35,19 +35,21 @@ Every run folder holds its frozen case as `resolved_config.json`. Running it aga
 same fingerprint and the same run folder, which the folder refusal shows:
 
 ```bash
-pydac css --case simulation_results/cyclic_mode/packed_bed_7a4930a5/1D_mode/resolved_config.json --dry-run || echo "exit code $?"
+pydac css --case simulation_results/cyclic_mode/packed_bed_d3aac08f/1D_mode/resolved_config.json --dry-run || echo "exit code $?"
 ```
 
 ```text
-Mode: frozen case simulation_results/cyclic_mode/packed_bed_7a4930a5/1D_mode/resolved_config.json
-Refused: `simulation_results/cyclic_mode/packed_bed_7a4930a5` already holds a run. Continue it with --resume simulation_results/cyclic_mode/packed_bed_7a4930a5 (pydac.resume), replace it with --overwrite (overwrite=True), or set another execution.extra_tag.
+Mode: frozen case simulation_results/cyclic_mode/packed_bed_d3aac08f/1D_mode/resolved_config.json
+Refused: `simulation_results/cyclic_mode/packed_bed_d3aac08f` already holds a run. Continue it with --resume simulation_results/cyclic_mode/packed_bed_d3aac08f (pydac.resume), replace it with --overwrite (overwrite=True), or set another execution.extra_tag.
 exit code 2
 ```
 
-On another machine, or in another folder, the same command runs the case into
-`simulation_results/cyclic_mode/packed_bed_7a4930a5`. An NSGA-II campaign is shared the
-same way: its base case is `CAMPAIGN/resolved_config.json`, and the bounds, constraints and
-optimizer options are the command line (`results/campaign_identity.json` records them all).
+On another machine, or in another folder, copy `resolved_config.json` there and run
+`pydac css --case resolved_config.json` (without `--dry-run`): the case runs into
+`simulation_results/cyclic_mode/packed_bed_d3aac08f`, the same folder name. An NSGA-II campaign
+is shared the same way: its base case is `CAMPAIGN/resolved_config.json`, and the bounds,
+constraints and optimizer options are the command line (`results/campaign_identity.json`
+records them all).
 
 ## What every run records
 
@@ -76,13 +78,13 @@ Abridged, from the run above (installed from a package):
   "activity": "run",
   "execution": {"workflow": "css", "solve": true, "persistence_policy": "run_full"},
   "input": {
-    "source_case_metadata": {"case_fingerprint": "7a4930a5459081a9bb61e998f196b3064a0483b3a467c2ad540b93ff9a91f585"},
+    "source_case_metadata": {"case_fingerprint": "d3aac08f508d1df9d42cb962e2c69f1d4b4ff78fa27d0a242092ba50713d4fce"},
     "relocated_fields": ["execution.output_root"]
   },
   "software": {
-    "version": "3.1.0",
+    "version": "3.2.0",
     "python": {"implementation": "CPython", "version": "3.12.2"},
-    "dependencies": {"numpy": {"version": "2.5.3"}, "scipy": {"version": "1.18.1"}, "pymoo": {"version": "0.6.2"}},
+    "dependencies": {"numpy": {"version": "2.5.5"}, "scipy": {"version": "1.18.1"}, "pymoo": {"version": "0.6.2"}},
     "native_libraries": {"sundials_version": "7.5.0"},
     "git": {"status": "no_checkout"}
   }

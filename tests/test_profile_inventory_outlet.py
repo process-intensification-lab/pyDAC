@@ -18,12 +18,14 @@ from pydac.utils.postprocessing.saved_solution import saved_solution_view
 from tests.neutral_packed_bed import neutral_profile
 
 
-def _prepare(tmp_path, nr, profiled=False):
+def _prepare(tmp_path, nr, profiled=False, pump=False):
     """A radially non-uniform state at uniform porosity, replayed through the solver.
 
     Temperature, composition and velocity all vary with r. That is enough to
     separate a molar-flow mixing cup from an area or mass-flux average: no radial
     porosity profile is involved, and none is needed to expose the difference.
+    With `pump` (1D) the step is a blow drawn by the vacuum pump, its last cell
+    inside the throttle band, so the outlet face carries the pump law.
     """
     profile = neutral_profile()
     profile["simulation"]["grid"].update(nz=6, nr=nr)
@@ -31,18 +33,34 @@ def _prepare(tmp_path, nr, profiled=False):
         profile["simulation"]["bed"]["design"].update(
             radial_porosity_profile=[[0, 0.34], [1, 0.412]],
             inlet_flux_profile=[[0, 0.8], [0.8, 0.8], [1, 2]])
+    if pump:
+        blow = profile["simulation"]["cycle"]["steps"]["blow"]
+        blow["flow"].update(vacuum_outlet_model="vacuum_pump", vacuum_pump_speed_m3_s=0.04)
+        # The state below puts the last cell near 101333 Pa: x ~ 0.3 in a 10 Pa band.
+        blow["pressure"]["outlet_pressure_Pa"] = 101330.0
+        blow["flow"]["vacuum_setpoint_band_fraction"] = 1e-4
+        # A closed-inlet step evaluates its gas properties on the gas in the bed; pure N2
+        # (the neutral startup) has no mixture diffusivity for N2, so start from a mixture.
+        profile["simulation"]["cycle"]["steps"]["startup"]["composition"]["co2_initial_mole_fraction"] = 0.1
     cycle = CycleConfig.from_experiment(load_experiment(default_profile=profile))
-    model = ColumnModelFactory(cycle).build_column_model(
-        step="startup", solver_options=cycle.solver_for_step(use_sparsity=False))
+    factory = ColumnModelFactory(cycle)
+    options = cycle.solver_for_step(use_sparsity=False)
+    model = factory.build_column_model(step="startup", solver_options=options)
+    if pump:
+        warm = {"Nz": model.Nz, "Nr": model.Nr, "ci": model.ci.copy(), "qi": model.qi.copy(),
+                "c_tot": model.c_tot[..., 0].copy(), "T": model.T[..., 0].copy(),
+                "T_wall": model.Tw[:, 0, 0].copy(), "layout_signature": model.state_layout.signature}
+        model = factory.build_column_model(step="blow", initial_state=warm, solver_options=options)
     z = model.z_c[:, None]
     r = model.r_c[None, :]
     temperature = model.T_ref * (1.1 + 0.1 * (1 - z) * (1 - r))
     concentration = model.c_tot_ref * (1 + 0.001 * (1 - z)) * model.T_ref / temperature
-    model.c_tot[...] = concentration[..., None]
+    # A warm-started model holds (Nz, Nr) fields where a startup holds (Nz, Nr, 1).
+    model.c_tot[...] = concentration.reshape(model.c_tot.shape)
     model.ci[..., 0] = concentration * (0.03 + 0.06 * (1 - z) * (1 - r))
     model.qi[..., model.adsorbate_index["CO2"]] = 0.3 + 0.2 * z + 0.5 * r
     model.qi[..., model.adsorbate_index["N2"]] = 0.2 + 0.1 * r
-    model.T[...] = temperature[..., None]
+    model.T[...] = temperature.reshape(model.T.shape)
     solver = Solver(model, base_folder=str(tmp_path))
     state = solver._initial_state()
     history = np.column_stack([state, state])
@@ -61,8 +79,25 @@ def prepared_1d(tmp_path):
     return _prepare(tmp_path, nr=1)
 
 
-def test_persisted_face_flows_equal_rhs_boundary_balance(prepared):
-    model, solver, history = prepared
+@pytest.fixture(params=["uniform", "profiled", "pump_1d"])
+def prepared_with_pump(request, tmp_path):
+    if request.param == "pump_1d":
+        return _prepare(tmp_path, nr=1, pump=True)
+    return _prepare(tmp_path, nr=5, profiled=request.param == "profiled")
+
+
+def test_the_pump_fixture_sits_inside_the_throttle_band(tmp_path):
+    model, solver, history = _prepare(tmp_path, nr=1, pump=True)
+    state = history[:, 0]
+    c_tot = state[model.state_field_by_name["c_tot"].state_slice]
+    T_bed = state[model.state_field_by_name["T_bed"].state_slice]
+    p_last = (c_tot * T_bed).reshape(model.Nz, model.Nr)[-1, 0]
+    g = model.vacuum_manifold.throughput_fraction(p_last)
+    assert 0.0 < g < 1.0
+
+
+def test_persisted_face_flows_equal_rhs_boundary_balance(prepared_with_pump):
+    model, solver, history = prepared_with_pump
     original = history.copy()
     for k in range(history.shape[1]):
         rhs = model.pde_system_kpis(0, history[:, k]).copy()
@@ -80,12 +115,12 @@ def test_persisted_face_flows_equal_rhs_boundary_balance(prepared):
     np.testing.assert_array_equal(solver.sol["outlet_face"]["velocity_m_s"], before["velocity_m_s"])
 
 
-def test_persisted_enthalpy_flow_equals_rhs_convective_energy_flux(prepared):
+def test_persisted_enthalpy_flow_equals_rhs_convective_energy_flux(prepared_with_pump):
     # The energy balance transports `c_tot_dim * h_g` through the same convection
     # operator the species use, so the reported face flow has to equal that
     # operator's outlet row. There is no integrated energy state at the outlet to
     # check against, unlike the species balance above.
-    model, solver, history = prepared
+    model, solver, history = prepared_with_pump
     for k in range(history.shape[1]):
         state = history[:, k]
         # Run the balance itself, so the operator is built on the velocity field

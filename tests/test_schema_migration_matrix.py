@@ -23,6 +23,7 @@ from pydac.config.migrations import (
 from pydac.inputs.case_io import case_fingerprint, load_case, validate_case_document
 from tests.test_initial_solid_loadings import without_initial_solid_loadings
 from tests.test_sorbent_declarations import _with_v6_sorbent_fields
+from tests.test_vacuum_manifold import without_vacuum_outlet_fields
 
 
 LEGACY_CASE = "tests/cases/v3_smoke_startup.json"
@@ -38,6 +39,14 @@ def _written_as(version):
     document = _complete()
     simulation = document["simulation"]
     steps = simulation["cycle"]["steps"].values()
+    from pydac.config.migrations import pre_feed_blower_v9_vocabulary
+    from pydac.config.migrations import pre_output_schedule_v10_vocabulary
+    document = (pre_feed_blower_v9_vocabulary(document) if version <= 9
+                else pre_output_schedule_v10_vocabulary(document))
+    simulation = document["simulation"]
+    steps = simulation["cycle"]["steps"].values()
+    if version == 8:
+        without_vacuum_outlet_fields(document)
     if version == 7:
         without_initial_solid_loadings(document)
     if version <= 6:
@@ -75,7 +84,9 @@ def test_a_complete_older_case_upgrades_to_the_same_case(version):
 
 def _with_a_name_since(document, since):
     simulation = document["simulation"]
-    if since == 8:
+    if since == 9:
+        simulation["cycle"]["steps"]["heat"]["flow"]["vacuum_outlet_model"] = "valve"
+    elif since == 8:
         startup = simulation["cycle"]["steps"]["startup"]["composition"]
         startup["initial_solid_loadings_mol_per_kg"] = {"CO2": 0.0, "H2O": 0.0}
     elif since == 7:
@@ -91,7 +102,7 @@ def _with_a_name_since(document, since):
 
 @pytest.mark.parametrize(
     ("since", "version"),
-    [(since, version) for since in (4, 5, 6, 7, 8) for version in range(1, since)],
+    [(since, version) for since in (4, 5, 6, 7, 8, 9) for version in range(1, since)],
 )
 def test_a_name_from_a_later_schema_is_refused_in_every_earlier_one(since, version):
     document = _with_a_name_since(_written_as(version), since)

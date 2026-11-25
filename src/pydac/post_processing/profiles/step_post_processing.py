@@ -19,7 +19,7 @@ import pandas as pd
 from pydac.post_processing.metrics.step_metrics import MetricRecord, STEP_METRIC_CATALOG, StepMetrics
 from pymrm import interp_cntr_to_stagg, construct_grad
 from pydac.utils.vector_drag import normal_velocity, transverse_gradients
-from pydac.core.thermodynamics_separators import Component, FlashSeparator, ThermoModels
+from pydac.core.thermodynamics_separators import Component, FlashSeparator
 from pydac.post_processing.profiles.step_plotting import ProfilesPlotter
 from pydac.utils.postprocessing import cyclic_profiles as _profile_utils
 from pydac.utils.postprocessing.saved_solution import saved_solution_view
@@ -482,6 +482,21 @@ class StepPostProcessor:
     def _reconstruct_axial_velocity(self, rho):
         """Reconstruct dimensional axial velocity from saved pressure metadata."""
         rho_stagg_ax = interp_cntr_to_stagg(rho, self.z_f, self.z_c, axis=0)
+        valve = getattr(self.pb, "ads_outlet_valve", None)
+        metadata = self.sol.get("extra", {}).get("ads_outlet_valve")
+        if metadata is not None:
+            from pydac.core.ads_outlet import AdsOutletValve
+            valve = AdsOutletValve(metadata["conductance_m_s_Pa"], metadata["p_out_Pa"],
+                                   metadata["p_ref_Pa"], metadata["u_ref_m_s"],
+                                   metadata["overpressure_Pa"], metadata["feed_velocity_m_s"])
+        if getattr(self.pb, "vacuum_manifold", None) is not None or valve is not None:
+            # As in the RHS: the pump or valve law below replaces the outlet face, whose
+            # extrapolated density can be negative under a steep last-cell gradient.
+            rho_stagg_ax[-1] = rho[-1]
+
+        if getattr(self.pb, "feed_blower", None) is not None:
+            # P1: match the RHS face-density robustness guard.
+            rho_stagg_ax[0] = rho[0]
 
         # The saved gradient operator acts on dimensionless z/L_b and p/p_ref.
         p_nd = self.p_tot / self.pb.p_ref
@@ -527,6 +542,17 @@ class StepPostProcessor:
 
         if self.step in self.CLOSED_OUTLET_STEPS:
             u_ax[-1, :, :] = 0.0
+
+        if getattr(self.pb, "vacuum_manifold", None) is not None:
+            p_last_nd = p_nd[-1]                                   # (Nr, Nt)
+            u_ax[-1] = self.pb.vacuum_manifold.outlet_velocity(p_last_nd) * self.pb.u_ref
+
+        if getattr(self.pb, "feed_blower", None) is not None:
+            # P1: saved pressures are dimensionless here; profiles use m/s.
+            u_ax[0] = self.pb.feed_blower.inlet_velocity(p_nd[0]) * self.pb.u_ref
+
+        if valve is not None:
+            u_ax[-1] = valve.outlet_velocity(p_nd[-1]) * valve.u_ref_m_s
 
         u_ax[np.abs(u_ax) < 1e-8] = 0.0
         return u_ax
@@ -1244,6 +1270,24 @@ class StepPostProcessor:
         """Return the step's resolved `outlet` group: where its outlet stream goes."""
         return self.pb.column_config.step_settings.outlet
 
+    def _closed_inlet_accounting(self):
+        """Only physical closed-inlet steps can equate discharge with bed loss."""
+        return (self.step in ("blow", "heat", "w_purge", "w_des")
+                and np.all(np.asarray(self.pb.mass_flow_in_i) == 0.0))
+
+    def _closed_inlet_diagnostics(self):
+        self._get_flowrates()
+        summary = self.get_mass_balance_summary()
+        records = []
+        for species in self.gas_species:
+            saved = simpson(self.molar_flow_out_by_species[species], x=self.time)
+            records.append(self._step_metric_record(
+                "mass.outlet.saved.simpson", species, saved * self.molecular_weight_by_species[species]))
+            if "delta_integrated" in summary[species]:
+                records.append(self._step_metric_record(
+                    "mass.outlet.accumulator", species, -summary[species]["delta_integrated"]))
+        return records
+
     def _outlet_metric_records(self, mass_metrics):
         """Return `(mass records, vacuum energy [MJ], condenser energy records)`.
 
@@ -1277,8 +1321,14 @@ class StepPostProcessor:
             )
             self._get_flowrates()
             m_CO2 = self.pb.MW_CO2 * simpson(self.n_CO2_out, x=self.time)
-            records = [record("mass.after.vacuum", "CO2", m_CO2)]
-            records.extend(inert_records("mass.after.vacuum"))
+            if self._closed_inlet_accounting():
+                summary = self.get_mass_balance_summary()
+                records = [record("mass.after.vacuum", species, -summary[species]["delta_state"])
+                           for species in self.gas_species]
+                records.extend(self._closed_inlet_diagnostics())
+            else:
+                records = [record("mass.after.vacuum", "CO2", m_CO2)]
+                records.extend(inert_records("mass.after.vacuum"))
             _, energy_vacuum, _ = self.get_energies()
             return records, energy_vacuum, []
 
@@ -1349,10 +1399,13 @@ class StepPostProcessor:
         )
         records = []
         for species in self.gas_species:
-            vented = -mass_metrics[species]["change"]
+            vented = (-self.get_mass_balance_summary()[species]["delta_state"]
+                      if self._closed_inlet_accounting() else -mass_metrics[species]["change"])
             if species == "H2O" and steam_in is not None:
                 vented += steam_in
             records.append(record("mass.vented", species, vented))
+        if self._closed_inlet_accounting():
+            records.extend(self._closed_inlet_diagnostics())
         return records
 
     def run_condensation_separator(self, T_cond=278.15):
@@ -1466,14 +1519,12 @@ class StepPostProcessor:
         Feed basis is the one `run_condensation_separator` uses -- CO2 and H2O only --
         so that a duty computed here and the recorded total are on one basis.
 
-        `FlashSeparator.solve` assumes two phases exist: it reads y and x off the
-        equilibrium at (T, p) alone and splits the feed with the lever rule.  Above the
-        dew point that assumption is false, and the algebra says so -- the denominator
-        changes sign, y_CO2 goes negative, and the lever rule hands back more liquid
-        than there was feed.  It raises nothing, it returns a number.  The product
-        temperature is always far below the dew point so the recorded total never meets
-        this; the cooling-water limit is a site parameter and can be pushed above it,
-        hence the gate.
+        The separator classifies liquid, vapor and two-phase feeds with the same
+        Henry/Raoult K-values used for the split. This method uses `_binary_flash`,
+        like the condenser and vacuum-discharge paths, so non-finite or unbalanced
+        results raise instead of being clipped or replaced by zero condensate.
+        At or above the dew point the liquid flow is zero. The configured product
+        temperature and the cooling-water limit can both place a feed in that region.
         """
         n_CO2 = self.n_CO2_out                                    # [mol/s]
         n_H2O = self.n_H2O_out                                    # [mol/s]
@@ -1485,7 +1536,6 @@ class StepPostProcessor:
         separator = FlashSeparator(
             Component("CO2", 304.2, 73.74), Component("H2O", 647.096, 220.64)
         )
-        p_sat_end = float(ThermoModels.p_sat_H2O(T_end))
 
         carries_stream = self._condenser_stream_mask()
         n_l = np.zeros(self.Nt)
@@ -1494,13 +1544,10 @@ class StepPostProcessor:
         for i in range(self.Nt):
             if not carries_stream[i]:
                 continue                                          # no stream: nothing to flash
-            if (1.0 - z_CO2[i]) * p_cond[i] <= p_sat_end:
-                continue                                          # dry at T_end: no liquid
-            res = separator.solve(
-                n_feed=n_total[i], z_CO2_feed=z_CO2[i], T=T_end, p=p_cond[i]
-            )
-            nl = res["nl"]
-            n_l[i] = min(max(nl, 0.0), n_total[i]) if np.isfinite(nl) else 0.0
+            # The same checked flash as the product line: a sample above its dew
+            # point at T_end returns nl = 0, a failed flash raises.
+            res = self._binary_flash(separator, n_total[i], z_CO2[i], T_end, p_cond[i])
+            n_l[i] = res["nl"]
             x_CO2[i], x_H2O[i] = res["x_CO2"], res["x_H2O"]
         return n_l, x_CO2, x_H2O
 
@@ -1637,29 +1684,37 @@ class StepPostProcessor:
     
     @staticmethod
     def _binary_flash(separator, n_feed, z_CO2, T, p):
-        """Flash one CO2/H2O sample at (T, p), or pass it through if it is dry.
+        """Flash one CO2/H2O sample at (T, p) and check the result.
 
-        `FlashSeparator.solve` assumes two phases: it reads y and x off the
-        equilibrium at (T, p) alone and splits the feed with the lever rule.  A stream
-        drier than its dew point (binary basis, as in `_condenser_flash_at`) has no
-        liquid, and the solve would return a split anyway, with no error.  Such a
-        sample leaves as vapour, unchanged.  A two-phase result is held inside the
-        feed: 0 <= nv <= n_feed.
+        `FlashSeparator.solve` classifies the sample (one liquid, one vapour or two
+        phases) with the same K-values it splits with, so there is no separate
+        dew-point gate here and nothing to clip. Every result is checked: finite,
+        phase flows inside the feed, both species balanced. A result that fails raises
+        ValueError, so a failed flash can never be reported as zero product or zero
+        condensate.
         """
-        if (1.0 - z_CO2) * p <= float(ThermoModels.p_sat_H2O(T)):
-            return {
-                "y_CO2": z_CO2,
-                "y_H2O": 1.0 - z_CO2,
-                "x_CO2": 0.0,
-                "x_H2O": 0.0,
-                "nv": n_feed,
-                "nl": 0.0,
-            }
         res = separator.solve(n_feed=n_feed, z_CO2_feed=z_CO2, T=T, p=p)
-        nv = res["nv"]
-        if not (np.isfinite(nv) and 0.0 <= nv <= n_feed):
-            res["nv"] = min(max(nv, 0.0), n_feed) if np.isfinite(nv) else 0.0
-            res["nl"] = n_feed - res["nv"]
+        n_feed, z_CO2 = float(n_feed), float(z_CO2)
+        values = [res[k] for k in ("y_CO2", "y_H2O", "x_CO2", "x_H2O", "nv", "nl")]
+        tol = 1e-9 * max(n_feed, 1e-300)
+        nv, nl = res["nv"], res["nl"]
+        problem = None
+        if not all(np.isfinite(v) for v in values):
+            problem = "a non-finite value"
+        elif not (-tol <= nv <= n_feed + tol and -tol <= nl <= n_feed + tol):
+            problem = f"phase flows outside the feed (nv = {nv}, nl = {nl})"
+        elif abs(nv + nl - n_feed) > tol:
+            problem = f"total balance off by {nv + nl - n_feed}"
+        else:
+            off_CO2 = nv * res["y_CO2"] + nl * res["x_CO2"] - n_feed * z_CO2
+            off_H2O = nv * res["y_H2O"] + nl * res["x_H2O"] - n_feed * (1.0 - z_CO2)
+            if abs(off_CO2) > tol or abs(off_H2O) > tol:
+                problem = f"species balances off by CO2 {off_CO2}, H2O {off_H2O}"
+        if problem is not None:
+            raise ValueError(
+                f"CO2/H2O flash at T = {T} K, p = {p} Pa, n_feed = {n_feed} mol/s, "
+                f"z_CO2 = {z_CO2}: {problem}; result {res}."
+            )
         return res
 
     def _raw_outlet_vacuum_flash(self, separator, T, p):
@@ -1706,10 +1761,14 @@ class StepPostProcessor:
         Q_out_cond = nv_out_cond * R_gas * T_cond / p_outlet       # [m³/s] using ideal gas law
 
         # Vacuum Pump Model (Fully Compressible, Polytropic) 
-        eta_vacuum_pump = 0.8 * 19.55 * (p_outlet/1e5) / (1 + 19.55 * p_outlet/1e5)                 # Ward et al.
-        power_vacuum_pump1 = (1 / eta_vacuum_pump) * (gamma / (gamma - 1)) * p_outlet * Q_out_cond 
-        power_vacuum_pump2 = (pressure_ratio_vac) ** ((gamma - 1) / gamma) - 1
+        eta_vacuum_pump = 0.8 * 19.55 * (p_outlet/101325.0) / (1 + 19.55 * p_outlet/101325.0)       # Maruyama et al. (2020) Eq. 10, P in atm
+        power_vacuum_pump1 = (1 / eta_vacuum_pump) * (gamma / (gamma - 1)) * p_outlet * np.maximum(Q_out_cond, 0.0) 
+        power_vacuum_pump2 = np.maximum((pressure_ratio_vac) ** ((gamma - 1) / gamma) - 1, 0.0)
         power_vacuum_pump = power_vacuum_pump1 * power_vacuum_pump2  
+        law = getattr(self.pb, "vacuum_manifold", None)
+        if law is not None and law.p_idle_W != 0.0:
+            # Standby power P_idle (1 - g) while the pressure control throttles; skipped in idle mode "off".
+            power_vacuum_pump = power_vacuum_pump + law.idle_power(p_outlet / self.pb.p_ref)
         
         # Integrate the power over time to get energy consumption
         time = self.time  # [s]

@@ -51,10 +51,10 @@ example `1D_25z`. Inside a step or CSS run folder, everything sits in the result
 
 ## A CSS run
 
-The CSS run above writes `simulation_results/cyclic_mode/packed_bed_7a4930a5/`:
+The CSS run above writes `simulation_results/cyclic_mode/packed_bed_d3aac08f/`:
 
 ```text
-packed_bed_7a4930a5/
+packed_bed_d3aac08f/
 └── 1D_mode/
     ├── resolved_config.json      the complete case of the run
     ├── case_metadata.json
@@ -100,11 +100,11 @@ every `cycle_N/` except the reported one when it ends. It cannot be combined wit
 
 ## A step run
 
-`pydac steps --case my_case.json` writes `simulation_results/step_mode/packed_bed_7a4930a5/`,
+`pydac steps --case my_case.json` writes `simulation_results/step_mode/packed_bed_d3aac08f/`,
 with the same fingerprint as the CSS run of the same case:
 
 ```text
-packed_bed_7a4930a5/
+packed_bed_d3aac08f/
 └── 1D_mode/
     ├── resolved_config.json
     ├── case_metadata.json
@@ -140,7 +140,7 @@ KPIs from it:
 ```python
 import pydac
 
-run = "simulation_results/cyclic_mode/packed_bed_7a4930a5"
+run = "simulation_results/cyclic_mode/packed_bed_d3aac08f"
 loader = pydac.CycleDataLoader(run)
 kpis = pydac.CycleKPIs(loader.load())
 
@@ -154,17 +154,17 @@ print(kpis.cycle_time_breakdown())
 
 ```text
 cycle_3
-productivity    33.23 kg CO2 per m3 of bed per day
-equivalent work 77.1 MJ per kg CO2
-CO2 recovery    0.746
+productivity    34.57 kg CO2 per m3 of bed per day
+equivalent work 74.1 MJ per kg CO2
+CO2 recovery    0.776
 CO2 purity      0.968 (wet), 1.000 (dry)
              Step  Duration [s]  Fraction [-]  Cumulative time [s]
 0      adsorption  39000.000000      0.716837         39000.000000
 1        blowdown    106.588379      0.001959         39106.588379
 2      preheating   9000.000000      0.165424         48106.588379
 3      desorption   3600.000000      0.066170         51706.588379
-4        cooldown   2673.463051      0.049139         54380.051431
-5  pressurization     25.656984      0.000472         54405.708415
+4        cooldown   2673.463051      0.049139         54380.051430
+5  pressurization     25.656869      0.000472         54405.708300
 ```
 
 This coarse run reaches CSS at cycle 3 with the default `execution.css_tolerance` (0.005);
@@ -191,7 +191,7 @@ the numbers only show the calls.
 |---|---|---|
 | `productivity()` | `float` | kg CO2 per m³ of bed per day |
 | `equivalent_work()` | `float` | MJ per kg of recovered CO2 |
-| `recovery(species="CO2")` | `float` | recovered over adsorbed mass, fraction |
+| `recovery(species="CO2")` | `float` | recovered over feed-uptake mass (adsorption + pressurization), fraction |
 | `cyclic_working_capacity(species="CO2")` | `float` | mol per kg of sorbent |
 | `recovered_mass(species)` | `float` | kg per cycle |
 | `cycle_time()` | `float` | s |
@@ -240,7 +240,7 @@ values, feasible when at most 0, in the order of `constraint_names`).
 import numpy as np
 import pandas as pd
 
-results = "simulation_results/nsga2/1D_25z_packed_bed_0b76eb17/results"
+results = "simulation_results/nsga2/1D_25z_packed_bed_c60786ac/results"
 front = pd.read_csv(f"{results}/pareto_front.csv")
 print(front[["t_ads", "P_vac", "eq_work", "productivity"]])
 
@@ -263,7 +263,7 @@ writes under the folder you run it from:
 ```python
 import json
 
-results = "simulation_results/nsga2/1D_25z_packed_bed_0b76eb17/results"
+results = "simulation_results/nsga2/1D_25z_packed_bed_c60786ac/results"
 records = f"{results}/candidate_records/generation_0001.jsonl"
 with open(records) as handle:
     record = json.loads(handle.readline())          # the first candidate of generation 1

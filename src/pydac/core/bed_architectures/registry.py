@@ -166,7 +166,7 @@ def _number_mapping(value: Any, *, label: str) -> dict[str, float]:
             raise ValueError(f"{label} key {key!r} is not one lowercase token.")
         if isinstance(number, (bool, np.bool_)) or not isinstance(number, Real):
             raise TypeError(
-                f"{label}[{key!r}] must be a number (3.1.0 supports flat numeric "
+                f"{label}[{key!r}] must be a number (3.2.0 supports flat numeric "
                 f"mappings only), got {type(number).__name__}."
             )
         number = float(number)
@@ -435,7 +435,7 @@ class _RegisteredArchitecture:
         if missing:
             self._fail("resolve_dispersion", f"missing keys {missing}.")
         unexpected = [key for key in result if key not in ("model", *_DISPERSION_ARRAYS)]
-        if unexpected:  # refused, not dropped: nothing would carry them (Astra AF3-02)
+        if unexpected:  # refused, not dropped: nothing would carry them
             self._fail(
                 "resolve_dispersion",
                 f"unexpected keys {unexpected}: the result has exactly `model` and "

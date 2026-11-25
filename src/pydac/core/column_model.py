@@ -10,6 +10,7 @@ Affiliation: Eindhoven University of Technology
 """
 
 import math
+from pydac.core.ads_outlet import build_ads_outlet
 from collections.abc import Mapping
 import numpy as np
 from pydac.core.pymrm_caching import ConvfluxUpwindCache, GradCache
@@ -36,6 +37,8 @@ from pydac.core.bed_architectures import (
 from pydac.core.column_model_input import ColumnModelInput
 from pydac.core.species_catalog import get_species_properties
 from pydac.core.state_layout import Mixture, StateLayout, simulation_scalar_states
+from pydac.core.vacuum_manifold import build_vacuum_manifold
+from pydac.core.feed_blower import build_feed_blower
 from pymrm import (
     construct_convflux_bc,
     construct_div,
@@ -187,6 +190,7 @@ class ColumnModelMoL:
         self.Nz = int(config.grid.nz)                    # axial grid points
         self.Nr = int(config.grid.nr)                    # radial grid points; `Nr = 1` activates 1D mode
         self.Nr_plot_2d = int(config.grid.nr_plot_2d)    # pseudo-radial resolution to render 2D plots from 1D runs
+        self.output_schedule_spec = dict(config.grid.output_schedule)
         self.Nt = int(config.grid.nt)                    # output time points
         self.rtol = float(config.solver_parameters.rtol)
         self.atol = float(config.solver_parameters.atol)
@@ -243,6 +247,16 @@ class ColumnModelMoL:
         self.m_dot_steam = flow.steam_mass_flow_kg_s
         self.alpha_bd = np.inf if blowdown is None else blowdown
         self.alpha_ps = np.inf if pressurization is None else pressurization
+        self.ads_outlet_overpressure_Pa = flow.ads_outlet_overpressure_Pa
+        self.press_inlet_model = flow.press_inlet_model
+        self.feed_blower_flow_m3_s = flow.feed_blower_flow_m3_s
+        self.feed_blower_band_fraction = flow.feed_blower_band_fraction
+        self.vacuum_outlet_model = flow.vacuum_outlet_model
+        self.vacuum_pump_speed_m3_s = flow.vacuum_pump_speed_m3_s
+        self.vacuum_pump_ultimate_pressure_Pa = flow.vacuum_pump_ultimate_pressure_Pa
+        self.vacuum_setpoint_band_fraction = flow.vacuum_setpoint_band_fraction
+        self.vacuum_pump_idle_mode = flow.vacuum_pump_idle_mode
+        self.vacuum_pump_idle_power_W = flow.vacuum_pump_idle_power_W
 
         # Step temperatures and external wall heat transfer
         self.T_feed = thermal.feed_temperature_K
@@ -448,8 +462,12 @@ class ColumnModelMoL:
         
         # Parameters for flow conditions
         self._resolve_inlet_velocity()
-        self.bd_fact = 1 / (self.alpha_bd * self.L_b)
-        self.ps_fact = 1 / (self.alpha_ps * self.L_b)
+        # The pump replaces the outlet-face velocity and does not read alpha_bd (0 would divide).
+        self.bd_fact = 0.0 if self.vacuum_outlet_model == "vacuum_pump" else 1 / (self.alpha_bd * self.L_b)
+        self.ps_fact = 0.0 if self.press_inlet_model == "feed_blower" else 1 / (self.alpha_ps * self.L_b)
+        self.ads_outlet_valve = build_ads_outlet(self)
+        self.feed_blower = build_feed_blower(self)   # C0: None for "valve"; alpha_ps is ignored
+        self.vacuum_manifold = build_vacuum_manifold(self)   # None for "valve"
 
         # Parameters for interpolation
         self.dz1 = self.z_f[2] - self.z_f[0]
@@ -1308,7 +1326,20 @@ class ColumnModelMoL:
         inv_D_bin[off_diag] = 1.0 / D_bin[off_diag]
 
         denom = inv_D_bin @ y_vec
-        self.D_m = (1.0 - y_vec) / denom
+        with np.errstate(divide="ignore", invalid="ignore"):
+            D_m = (1.0 - y_vec) / denom
+        # Blanc's law gives 0/0 (or 0) for a species alone in the gas. Only there it is replaced
+        # by its limit with the other species in equal shares, 1 / mean_j(1/D_ij) (D_ij exactly
+        # for a binary); every value the law can evaluate is kept as it is.
+        for i in np.flatnonzero(~np.isfinite(D_m) | (D_m <= 0.0)):
+            D_m[i] = 1.0 / np.mean(inv_D_bin[i, off_diag[i]])   # a mixture has >= 2 species
+        if not np.all(np.isfinite(D_m)) or np.any(D_m <= 0.0):
+            raise ValueError(
+                f"Step '{self.step}': the mixture diffusivities {D_m} are not finite and positive for "
+                f"the {self.dispersion_composition_source} gas "
+                f"{dict(zip(self.gas_species, y_vec.round(12).tolist()))}."
+            )
+        self.D_m = D_m
 
     def _Fuller_binary_diff(self, MW, v, T, p):
         """Compute a binary molecular diffusion coefficient with Fuller."""
@@ -2049,7 +2080,7 @@ class ColumnModelMoL:
         self._energy_gamma_ratio = gamma / (gamma - 1.0)
         self._energy_poly_exponent = (gamma - 1.0) / gamma
         self._compression_prefactor = self._energy_gamma_ratio / 0.7
-        self._vacuum_eta_pressure_scale = 19.55 / 1e5
+        self._vacuum_eta_pressure_scale = 19.55 / 101325.0   # Maruyama et al. (2020) Eq. 10: P in atm
         self._vacuum_eta_prefactor = 0.8 * self._vacuum_eta_pressure_scale
         self._jacket_power_constant = self.h_ext * self.T_jacket * self._jacket_quad_weight_sum
 
@@ -2150,6 +2181,9 @@ class ColumnModelMoL:
             
             self.mole_flow_in_i = np.zeros_like(self.c_feed).flatten()
             self.mass_flow_in_i = np.zeros_like(self.mole_flow_in_i)
+
+        if self.feed_blower is not None:
+            self.inlet_flux_source = "feed_blower"
 
         self._record_inlet_allocation_source()
 
@@ -2294,6 +2328,16 @@ class ColumnModelMoL:
     def _velocity_from_pressure_law(self, p_tot, rho):
         """Compute dimensionless superficial velocity from the bound law."""
         rho_stagg_ax = interp_cntr_to_stagg(rho.reshape(self.shape_single), self.z_f, self.z_c, axis=0)
+        if self.vacuum_manifold is not None or self.ads_outlet_valve is not None:
+            # The pump or the ads outlet valve replaces this face's velocity
+            # (update_velocity_fields), so its drag inversion must not use the
+            # extrapolated face density, which is negative once p_(N-1) > 3 p_N;
+            # the last cell's density stands in.
+            rho_stagg_ax[-1] = rho.reshape(self.shape_single)[-1]
+
+        if self.feed_blower is not None:
+            # C1: the replaced face must not invert drag with extrapolated negative density.
+            rho_stagg_ax[0] = rho.reshape(self.shape_single)[0]
 
         # pressure gradients from your operators
         grad_ax_p = self.Grad_ax_p.dot(p_tot) + self.grad_ax_p_bc_dense
@@ -2361,6 +2405,19 @@ class ColumnModelMoL:
         if self.step in ("press", "cool"):
             u_ax[-1, :] = 0.0
             
+        if self.vacuum_manifold is not None:
+            p_last = p_tot.reshape(self.shape_single)[-1, :, 0]
+            u_ax[-1, :, 0] = self.vacuum_manifold.outlet_velocity(p_last)
+
+        if self.ads_outlet_valve is not None:
+            p_last = p_tot.reshape(self.shape_single)[-1, :, 0]
+            u_ax[-1, :, 0] = self.ads_outlet_valve.outlet_velocity(p_last)
+
+        if self.feed_blower is not None:
+            # C2: supply-referred, dimensionless velocity before flux publication.
+            p_first = p_tot.reshape(self.shape_single)[0, :, 0]
+            u_ax[0, :, 0] = self.feed_blower.inlet_velocity(p_first)
+
         # Symmetry and impermeable wall: no radial boundary flux.
         u_rad[:, 0] = 0.0
         u_rad[:, -1] = 0.0
@@ -3070,14 +3127,24 @@ class ColumnModelMoL:
         pressure_ratio_vac = self.p_amb / p_outlet_avg                  # Discharge at atmospheric pressure
 
         # Compression Model (Polytropic Compressible)
-        power_compression = self._compression_prefactor * p_inlet_avg * Q_in_avg
-        power_compression *= pressure_ratio_compr ** self._energy_poly_exponent - 1.0
+        power_compression = self._compression_prefactor * p_inlet_avg * max(Q_in_avg, 0.0)
+        power_compression *= max(pressure_ratio_compr ** self._energy_poly_exponent - 1.0, 0.0)
         
+        if self.feed_blower is not None:
+            # C3: ambient-to-header supply work, eta=0.7, suction temperature T_feed.
+            # Expansion is free; no standby/line-loss power. Valve proxy above is unchanged.
+            ratio_supply = max(1.0, self.p_feed / self.p_amb)
+            power_compression = self._compression_prefactor * self.p_feed * Q_in_avg
+            power_compression *= ratio_supply ** self._energy_poly_exponent - 1.0
+
         # Vacuum Pump Model (Fully Compressible, Polytropic) 
         pressure_scale = self._vacuum_eta_pressure_scale * p_outlet_avg
-        eta_vacuum_pump = self._vacuum_eta_prefactor * p_outlet_avg / (1.0 + pressure_scale)                 # Ward et al.
-        power_vacuum = (self._energy_gamma_ratio / eta_vacuum_pump) * p_outlet_avg * Q_out_avg 
-        power_vacuum *= pressure_ratio_vac ** self._energy_poly_exponent - 1.0
+        eta_vacuum_pump = self._vacuum_eta_prefactor * p_outlet_avg / (1.0 + pressure_scale)                 # Maruyama et al. (2020)
+        power_vacuum = (self._energy_gamma_ratio / eta_vacuum_pump) * p_outlet_avg * max(Q_out_avg, 0.0)
+        power_vacuum *= max(pressure_ratio_vac ** self._energy_poly_exponent - 1.0, 0.0)
+        if self.vacuum_manifold is not None and self.vacuum_manifold.p_idle_W != 0.0:
+            # Standby power P_idle (1 - g) while the pressure control throttles; skipped in idle mode "off".
+            power_vacuum = power_vacuum + self.vacuum_manifold.idle_power(p_outlet_avg / self.p_ref)
 
         # --- Jacket Energy ---
         dE_jacket_dt = self._jacket_power_constant - self.h_ext * np.dot(

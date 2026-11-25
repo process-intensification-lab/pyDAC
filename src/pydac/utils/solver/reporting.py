@@ -24,7 +24,9 @@ def report_solve_outcome(
     )
 
     reason = termination_summary["reason"]
-    if reason == "event" or termination_summary.get("event") is not None:
+    if reason == "nonfinite_output":
+        print(f"Termination reason: solver failure ({termination_summary['message']})")
+    elif reason == "event" or termination_summary.get("event") is not None:
         event_summary = termination_summary["event"]
         prefix = "Failure event" if not termination_summary["success"] else "Termination reason"
         print(

@@ -123,6 +123,8 @@ STEP_METRIC_DEFINITIONS = (
     MetricDefinition(
         "mass.after.vacuum", "mass after vacuum discharge [kg]", "kg"
     ),
+    MetricDefinition("mass.outlet.saved.simpson", "saved outlet Simpson mass [kg]", "kg"),
+    MetricDefinition("mass.outlet.accumulator", "outlet accumulator mass [kg]", "kg"),
     # Purge/preheating discharge.  Deliberately NOT "mass.after.vacuum": what a purge
     # vents is lost, not recovered, so it must never be picked up by a product KPI.
     # Signed, positive when the species leaves the bed.

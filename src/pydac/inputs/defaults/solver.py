@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydac.inputs.defaults._rules import positive_integer, positive_number
+from pydac.inputs.defaults._rules import Rule, positive_integer, positive_number
+from pydac.utils.output_schedule import SCHEDULE_DEFAULTS
 
 
 def grid_defaults() -> dict[str, Any]:
@@ -14,6 +15,7 @@ def grid_defaults() -> dict[str, Any]:
         "nr": 25,
         "nt": 1000,
         "nr_plot_2d": 50,
+        "output_schedule": dict(SCHEDULE_DEFAULTS),
     }
 
 
@@ -32,8 +34,12 @@ def solver_rules():
     """Return stronger constraints not implied by the numeric defaults."""
     rules = {
         ("simulation", "grid", name): positive_integer()
-        for name in grid_defaults()
+        for name in grid_defaults() if name != "output_schedule"
     }
+    for name in SCHEDULE_DEFAULTS:
+        rules[("simulation", "grid", "output_schedule", name)] = (
+            Rule(kind="integer", minimum=2, nullable=True) if name == "dense_start_points"
+            else positive_number(nullable=True))
     rules.update(
         {
             ("simulation", "solver", name): positive_number()

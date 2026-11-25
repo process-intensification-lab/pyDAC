@@ -28,6 +28,13 @@ from pydac.config.migrations import (
     CURRENT_SCHEMA_VERSION,
     LEGACY_SCHEMA_VERSION,
     PRE_INITIAL_LOADING_SCHEMA_VERSION,
+    PRE_VACUUM_OUTLET_SCHEMA_VERSION,
+    PRE_FEED_BLOWER_SCHEMA_VERSION,
+    pre_feed_blower_v9_vocabulary,
+    refuse_feed_blower_before_v10,
+    refuse_output_schedule_before_v11,
+    pre_output_schedule_v10_vocabulary,
+    PRE_OUTPUT_SCHEDULE_SCHEMA_VERSION,
     PRE_OUTLET_SCHEMA_VERSION,
     PRE_SORBENT_MAPPING_SCHEMA_VERSION,
     PRE_VALVE_RENAME_SCHEMA_VERSION,
@@ -36,11 +43,13 @@ from pydac.config.migrations import (
     SUPPORTED_SCHEMA_VERSIONS,
     legacy_v1_vocabulary,
     pre_initial_loading_v7_vocabulary,
+    pre_vacuum_outlet_v8_vocabulary,
     pre_outlet_v3_vocabulary,
     pre_sorbent_mapping_v6_vocabulary,
     pre_valve_rename_v4_vocabulary,
     pre_wall_rename_v5_vocabulary,
     refuse_initial_loadings_before_v8,
+    refuse_vacuum_outlet_before_v9,
     solver_choice_v2_vocabulary,
     upgrade_experiment_document,
 )
@@ -194,6 +203,9 @@ def validate_case_document(source: Any) -> dict[str, Any]:
     original = _source_document(source)
     version = original.get("schema_version")
     refuse_initial_loadings_before_v8(original, "frozen case")
+    refuse_vacuum_outlet_before_v9(original, "frozen case")
+    refuse_feed_blower_before_v10(original, "frozen case")
+    refuse_output_schedule_before_v11(original, "frozen case")
     current_vocabulary = _case_vocabulary(source, original)
     try:
         if version == LEGACY_SCHEMA_VERSION:
@@ -238,6 +250,16 @@ def validate_case_document(source: Any) -> dict[str, Any]:
                 pre_initial_loading_v7_vocabulary(current_vocabulary),
                 (),
             )
+        elif version == PRE_VACUUM_OUTLET_SCHEMA_VERSION:
+            _require_complete(
+                original,
+                pre_vacuum_outlet_v8_vocabulary(current_vocabulary),
+                (),
+            )
+        elif version == PRE_FEED_BLOWER_SCHEMA_VERSION:
+            _require_complete(original, pre_feed_blower_v9_vocabulary(current_vocabulary), ())
+        elif version == PRE_OUTPUT_SCHEDULE_SCHEMA_VERSION:
+            _require_complete(original, pre_output_schedule_v10_vocabulary(current_vocabulary), ())
         elif version == CURRENT_SCHEMA_VERSION:
             _require_complete(original, current_vocabulary, ())
         else:

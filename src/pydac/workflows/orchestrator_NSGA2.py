@@ -54,10 +54,11 @@ from pydac.config import (
     write_resolved_config,
 )
 from pymoo.algorithms.moo.nsga2 import NSGA2
-from pymoo.core.problem import ElementwiseProblem, StarmapParallelization
+from pymoo.core.problem import ElementwiseProblem
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.mutation.pm import PM
 from pymoo.operators.sampling.lhs import LatinHypercubeSampling
+from pymoo.parallelization import StarmapParallelization
 from pymoo.termination.collection import TerminationCollection
 from pymoo.termination.ftol import MultiObjectiveSpaceTermination
 from pymoo.termination.max_eval import MaximumFunctionCallTermination
@@ -140,7 +141,8 @@ class NSGA2Constraints:
     steam_condensation : bool
         If True and the cycle is steam-assisted, add
         `g = T_steam_condensation - T_bed_min_preheat`. Silently ignored
-        when the cycle is wall-heated. Default False.
+        when the cycle is wall-heated; refused by `NSGA2RunConfig` when the
+        cycle has no `heat` or `w_purge` step. Default False.
     eq_work_max : float | None
         Optional upper bound on equivalent work in MJ/kg CO2.
         `g = eq_work - eq_work_max`. `None` disables. Used by the
@@ -179,12 +181,19 @@ class NSGA2Constraints:
         if self.oxygen_ppm_max is not None:
             g.append(float(result["oxygen_ppm"] - self.oxygen_ppm_max))
         if self.steam_condensation and is_steam_assisted:
+            # NSGA2RunConfig refuses the constraint on a cycle without a heat or
+            # w_purge step, so the preheat temperature always exists here.
             g.append(
                 float(result["T_steam_condensation"] - result["T_bed_min_preheat"])
             )
         if self.eq_work_max is not None:
             g.append(float(result["eq_work"] - self.eq_work_max))
         return g
+
+
+#: The steps whose minimum bed temperature the steam_condensation constraint reads
+#: (`CycleKPIs.preheating_temperatures`).
+PREHEATING_STEPS = frozenset({"heat", "w_purge"})
 
 
 def warn_if_unconstrained(constraints: NSGA2Constraints, *, is_steam_assisted: bool) -> bool:
@@ -344,6 +353,19 @@ class NSGA2RunConfig:
                 f"found {self.cycle_steps}."
             )
         self.is_steam_assisted = is_steam_assisted_desorption_step(self.desorption_step)
+        if (
+            self.constraints.steam_condensation
+            and self.is_steam_assisted
+            and not PREHEATING_STEPS & set(self.cycle_steps)
+        ):
+            # The constraint compares the bed preheated by heat/w_purge with the steam
+            # dew point; without preheating the steam meets the bed at the adsorption
+            # temperature, so there is nothing that could keep it from condensing.
+            raise ValueError(
+                "The steam_condensation constraint checks the bed preheated by a `heat` "
+                "or `w_purge` step before steam desorption; execution.cycle_steps "
+                f"{list(self.cycle_steps)} has neither. Add one of them or drop the constraint."
+            )
         self.var_names = (
             _resolve_var_names(self.is_steam_assisted)
             if self.decision_variables is None

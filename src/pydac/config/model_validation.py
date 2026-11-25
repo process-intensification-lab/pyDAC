@@ -55,6 +55,9 @@ def validate_model_configuration(config: ExperimentConfig) -> None:
     _validate_flow_model_grid(config)
     _validate_registered_architecture(config)
     _validate_wall_override_grid(config)
+    _validate_vacuum_outlets(config)
+    _validate_feed_blowers(config)
+    _validate_output_schedule_and_outlet(config)
 
 
 def _validate_sorbent_declarations(config: ExperimentConfig) -> None:
@@ -222,4 +225,118 @@ def _validate_flow_model_grid(config: ExperimentConfig) -> None:
     )
 
 
+def _validate_vacuum_outlets(config: ExperimentConfig) -> None:
+    """Refuse a vacuum-outlet declaration the step or the grid would not read.
+
+    The model build repeats the check; doing it here makes `--validate` and
+    `--dry-run` refuse the case before a run is planned. A pump step that runs in
+    event mode in some cycle (the same overrides as the run preflight) with its
+    pressure target inside the throttle band gets a warning.
+    """
+    import warnings
+
+    from pydac.core.vacuum_manifold import (
+        VACUUM_PUMP_OUTLET_MODEL,
+        check_vacuum_outlet,
+        target_inside_band_warning,
+    )
+    from pydac.utils.run.validation import _event_mode_steps
+
+    is_1d = int(config.simulation.grid.nr) == 1
+    for step in config.simulation.cycle.steps:
+        flow = step.config.flow
+        check_vacuum_outlet(
+            path=f"simulation.cycle.steps.{step.name}.flow",
+            step=step.name,
+            is_1d=is_1d,
+            model=flow.vacuum_outlet_model,
+            speed_m3_s=flow.vacuum_pump_speed_m3_s,
+            ultimate_pressure_Pa=flow.vacuum_pump_ultimate_pressure_Pa,
+            band_fraction=flow.vacuum_setpoint_band_fraction,
+            setpoint_Pa=step.config.pressure.outlet_pressure_Pa,
+            idle_mode=flow.vacuum_pump_idle_mode,
+            idle_power_W=flow.vacuum_pump_idle_power_W,
+        )
+    pump_steps = {
+        step.name: step for step in config.simulation.cycle.steps
+        if step.config.flow.vacuum_outlet_model == VACUUM_PUMP_OUTLET_MODEL
+    }
+    for name in _event_mode_steps(config, _executed_steps(config) & set(pump_steps)):
+        step = pump_steps[name]
+        message = target_inside_band_warning(
+            path=f"simulation.cycle.steps.{name}.termination",
+            termination=step.config.termination,
+            setpoint_Pa=step.config.pressure.outlet_pressure_Pa,
+            band_fraction=step.config.flow.vacuum_setpoint_band_fraction,
+            feed_pressure_Pa=step.config.pressure.feed_pressure_Pa,
+        )
+        if message is not None:
+            warnings.warn(message, UserWarning, stacklevel=2)
+
+
+def _executed_steps(config: ExperimentConfig) -> set[str]:
+    """Steps a step or CSS run of the case executes (both default sequences when unset)."""
+    from pydac.utils.tvsa import build_cycle_steps
+    from pydac.utils.tvsa.cycle_steps import build_repeating_cycle_steps
+
+    tokens = config.execution.cycle_steps
+    if tokens is None:
+        return set(build_cycle_steps(None)) | set(build_repeating_cycle_steps(None))
+    try:
+        return set(build_cycle_steps(tokens))
+    except ValueError:      # an unknown token is refused by the run preflight
+        return {step.name for step in config.simulation.cycle.steps}
+
+
 __all__ = ["validate_model_configuration"]
+
+
+def _validate_feed_blowers(config: ExperimentConfig) -> None:
+    import warnings
+    from pydac.core.feed_blower import check_feed_blower, target_inside_band_warning
+    from pydac.utils.run.validation import _event_mode_steps
+
+    blowers = {}
+    for step in config.simulation.cycle.steps:
+        flow = step.config.flow
+        check_feed_blower(path=f"simulation.cycle.steps.{step.name}.flow", step=step.name,
+                          is_1d=int(config.simulation.grid.nr) == 1, model=flow.press_inlet_model,
+                          flow_m3_s=flow.feed_blower_flow_m3_s,
+                          band_fraction=flow.feed_blower_band_fraction,
+                          setpoint_Pa=step.config.pressure.feed_pressure_Pa)
+        if flow.press_inlet_model == "feed_blower":
+            blowers[step.name] = step
+    for name in _event_mode_steps(config, _executed_steps(config) & set(blowers)):
+        step = blowers[name]
+        message = target_inside_band_warning(
+            path=f"simulation.cycle.steps.{name}.termination", termination=step.config.termination,
+            setpoint_Pa=step.config.pressure.feed_pressure_Pa,
+            band_fraction=step.config.flow.feed_blower_band_fraction,
+            outlet_pressure_Pa=step.config.pressure.outlet_pressure_Pa)
+        if message is not None:
+            warnings.warn(message, UserWarning, stacklevel=2)
+
+
+def _validate_output_schedule_and_outlet(config: ExperimentConfig) -> None:
+    from pydac.utils.output_schedule import validate_schedule_spec
+    from pydac.utils.run.validation import reachable_termination_modes
+    from pydac.core.ads_outlet import check_ads_outlet
+    grid = config.simulation.grid
+    # Every mode a run can give the step (own, global, cycle and step overrides):
+    # the schedule must fit each horizon, or the case would load and fail in the run.
+    modes = reachable_termination_modes(config)
+    for step in config.simulation.cycle.steps:
+        settings = step.config
+        for mode in sorted(modes[step.name]):
+            horizon = (settings.horizon.event_max_time_s
+                       if mode == "event" and settings.horizon.event_max_time_s is not None
+                       else settings.horizon.nominal_time_s)
+            try:
+                validate_schedule_spec(grid.output_schedule, horizon_s=horizon, nt=grid.nt)
+            except ValueError as exc:
+                raise ValueError(
+                    f"Step `{step.name}` in {mode} mode (horizon {horizon:g} s): {exc}"
+                ) from exc
+        check_ads_outlet(step=step.name, is_1d=grid.nr == 1,
+                         overpressure_Pa=settings.flow.ads_outlet_overpressure_Pa,
+                         feed_flow_m3_s=settings.flow.volumetric_flow_m3_s)

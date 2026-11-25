@@ -19,7 +19,7 @@ authors:
     affiliation: "Eindhoven University of Technology"
     orcid: "https://orcid.org/0000-0002-2903-7443"
 license: MIT
-version: 3.1.0
+version: 3.2.0
 doi: 10.5281/zenodo.23319859
 repository-code: "https://github.com/process-intensification-lab/pyDAC"
 keywords:

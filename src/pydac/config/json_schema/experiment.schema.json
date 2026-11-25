@@ -342,6 +342,56 @@
             "nz": {
               "minimum": 1,
               "type": "integer"
+            },
+            "output_schedule": {
+              "additionalProperties": false,
+              "properties": {
+                "dense_start_points": {
+                  "anyOf": [
+                    {
+                      "minimum": 2,
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "dense_start_s": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "first_output_s": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "max_output_spacing_s": {
+                  "anyOf": [
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "type": "object"
             }
           },
           "type": "object"
@@ -676,6 +726,18 @@
         "flow": {
           "additionalProperties": false,
           "properties": {
+            "ads_outlet_overpressure_Pa": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "One-way outlet pressure rise at nominal feed velocity [Pa]; 1D ads/startup only."
+            },
             "blowdown_valve_conductance": {
               "anyOf": [
                 {
@@ -686,7 +748,39 @@
                   "type": "null"
                 }
               ],
-              "description": "Valve conductance alpha [1/m] of the outlet relation dp/dn = alpha (p_set - p), n the outward normal; null is an ideal valve."
+              "description": "Valve conductance alpha [1/m] of the outlet relation dp/dn = alpha (p_set - p), n the outward normal; null is an ideal valve. Not read with vacuum_outlet_model 'vacuum_pump'."
+            },
+            "feed_blower_band_fraction": {
+              "anyOf": [
+                {
+                  "maximum": 0.1,
+                  "minimum": 1e-06,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Throttle width / feed pressure in [1e-6, 0.1]; null uses 1e-3 after inheritance."
+            },
+            "feed_blower_flow_m3_s": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Supply volumetric capacity at this step's feed pressure and temperature [m3/s]; required with feed_blower. Absolute: not coupled automatically to ads flow."
+            },
+            "press_inlet_model": {
+              "description": "Press inlet: valve (default), or capacity-limited feed_blower (1D press only).",
+              "enum": [
+                "valve",
+                "feed_blower"
+              ]
             },
             "pressurization_valve_conductance": {
               "anyOf": [
@@ -698,7 +792,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Valve conductance alpha [1/m] of the inlet relation dp/dn = alpha (p_set - p), n the outward normal; null is an ideal valve."
+              "description": "Valve conductance alpha [1/m] of the inlet relation dp/dn = alpha (p_set - p), n the outward normal; null is an ideal valve. Not read with press_inlet_model 'feed_blower'."
             },
             "steam_mass_flow_kg_s": {
               "anyOf": [
@@ -710,6 +804,77 @@
                   "type": "null"
                 }
               ]
+            },
+            "vacuum_outlet_model": {
+              "description": "Outlet of a vacuum-connected step (blow, heat, w_purge, w_des): 'valve' to a vacuum reservoir at the outlet pressure (blowdown_valve_conductance), or 'vacuum_pump', a pump of finite speed with pressure control at the outlet pressure (1D only; blowdown_valve_conductance is then not read).",
+              "enum": [
+                "valve",
+                "vacuum_pump"
+              ]
+            },
+            "vacuum_pump_idle_mode": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "off",
+                    "minimum_speed",
+                    "fixed_speed"
+                  ]
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "What the vacuum pump draws while the pressure control holds it without removing gas: 'off' (on/off with an isolation valve, no standby power), 'minimum_speed' (variable-speed drive at its minimum speed) or 'fixed_speed' (fixed-speed pump running against the closed control valve). A resolved null uses 'off'. An explicit null in a preset or setting inherits the lower layer; it does not reset an inherited mode."
+            },
+            "vacuum_pump_idle_power_W": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Standby electric power P_idle [W] of the vacuum pump, charged as P_idle (1 - g) while the control throttles; the vendor's absorbed power at minimum speed or at the ultimate pressure. Required with vacuum_pump_idle_mode 'minimum_speed' or 'fixed_speed', null otherwise."
+            },
+            "vacuum_pump_speed_m3_s": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Asymptotic volumetric speed S0 [m3/s] of the vacuum pump, S(p) = S0 (1 - p_ult/p); required with vacuum_outlet_model 'vacuum_pump'."
+            },
+            "vacuum_pump_ultimate_pressure_Pa": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Ultimate pressure p_ult [Pa] of the vacuum pump, nonnegative and below the outlet pressure. A resolved null uses 0 Pa. An explicit null in a preset or setting inherits the lower layer; it does not reset an inherited value."
+            },
+            "vacuum_setpoint_band_fraction": {
+              "anyOf": [
+                {
+                  "maximum": 0.1,
+                  "minimum": 1e-06,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Width of the control's throttle band divided by the outlet-pressure setpoint, in [1e-6, 0.1]: closed at the setpoint and fully open at or above setpoint * (1 + band). A resolved null uses 0.001. An explicit null in a preset or setting inherits the lower layer; it does not reset an inherited value."
             },
             "volumetric_flow_m3_s": {
               "anyOf": [
@@ -1000,7 +1165,7 @@
       "type": "object"
     }
   },
-  "$id": "https://raw.githubusercontent.com/process-intensification-lab/pyDAC/v3.1.0/src/pydac/config/json_schema/experiment.schema.json",
+  "$id": "https://raw.githubusercontent.com/process-intensification-lab/pyDAC/v3.2.0/src/pydac/config/json_schema/experiment.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "description": "Public pyDAC input. Fields are optional in development presets; frozen-case completeness is enforced by inputs.case_io.",
@@ -1009,7 +1174,7 @@
       "$ref": "#/$defs/execution"
     },
     "schema_version": {
-      "const": 8
+      "const": 11
     },
     "simulation": {
       "$ref": "#/$defs/simulation"

@@ -30,6 +30,13 @@ def outlet_face_history(model, packed_history):
             _, _, fractions = model._reconstruct_gas_state(state, c_tot_dim, 1e-32)
             density = c_tot_dim * (fractions @ model.MW)
             u = model._velocity_from_pressure_law(c_tot * temperature, density)
+            if getattr(model, "vacuum_manifold", None) is not None:
+                # The RHS overwrites the last face with the pump law; replay it too.
+                p_last = (c_tot * temperature).reshape(model.Nz, model.Nr)[-1]
+                u[-1, :, 0] = model.vacuum_manifold.outlet_velocity(p_last)
+            if getattr(model, "ads_outlet_valve", None) is not None:
+                p_last = (c_tot * temperature).reshape(model.Nz, model.Nr)[-1]
+                u[-1, :, 0] = model.ads_outlet_valve.outlet_velocity(p_last)
             velocity[:, k] = u[-1, :, 0] * model.u_ref
             concentrations = model._c_full_dim_buf
             face = last * concentrations[-1] + inner * concentrations[model._outlet_face_inner_index]

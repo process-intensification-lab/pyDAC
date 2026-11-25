@@ -167,7 +167,7 @@ arguments:
 ```python
 resolved, cycle_config = resolve_experiment_config(experiment_config=experiment_config)
 execution = resolved.execution
-solve, plot_profiles, use_sparsity, ... = execution.solve, execution.plot_profiles, ...
+solve, plot_profiles = execution.solve, execution.plot_profiles  # and the other execution flags
 ```
 
 `resolve_experiment_config()` ([`config/launch.py`](../../src/pydac/config/launch.py))
@@ -279,7 +279,7 @@ name, with the previous step's final fields as `prev_fields`.
 
 ```python
 run_base_folder = _resolve_spatial_base_folder_from_solver_settings(
-    self.base_folder, grid_config=self.column_factory.config.grid, ...
+    self.base_folder, grid_config=self.column_factory.config.grid,
 )   # → .../2D_mode  (the split of §2.6, derived again)
 ```
 
@@ -474,9 +474,11 @@ have a value for the whole sequence (`execution.*`) that `execution.step_options
 for single steps:
 
 ```json
-"execution": {
-  "solve": true,
-  "step_options": {"startup": {"solve": false}}
+{
+  "execution": {
+    "solve": true,
+    "step_options": {"startup": {"solve": false}}
+  }
 }
 ```
 

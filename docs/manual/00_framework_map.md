@@ -102,7 +102,9 @@ described in [01 — Inputs §3](01_inputs.md#3-entry-points).
 
 The resolved case, `ExperimentConfig`, is the last object a user writes. Everything below it in
 the layer map of §2 narrows that one document (one resolved case, then one step, then one model);
-nothing downstream decides a value again or changes it. The document that was resolved is the
+nothing downstream decides a value again or changes it. Where the case leaves an optional
+model parameter `null`, the model applies its documented default when it is built (for
+example the vacuum pump's setpoint band). The document that was resolved is the
 document that is saved and the document that runs.
 
 A new public value starts in `src/pydac/inputs/defaults/`: the default tree drives the
@@ -274,7 +276,7 @@ The step run of §6, on the 1D case `pydac validate --set grid.nz=25 --set grid.
 ```text
 simulation_results/
 └── step_mode/                          ← run mode
-    └── packed_bed_10b76906/            ← run folder: [TAG_]<architecture>_ + case fingerprint
+    └── packed_bed_4a91f7a3/            ← run folder: [TAG_]<architecture>_ + case fingerprint
         └── 1D_mode/                    ← results folder: grid.nr = 1
             ├── resolved_config.json    ← written first, before any model is built
             ├── case_metadata.json      ← fingerprint of the case
@@ -297,8 +299,8 @@ Its `case_metadata.json`:
 ```json
 {
   "canonicalization": "json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False) + newline",
-  "case_fingerprint": "10b769060a287d421bb2b1f6a9eea0661a40ac32206e8ba9293b0c369bd59576",
-  "schema_version": 8
+  "case_fingerprint": "4a91f7a3ce27b6ee461f32167ab169e5019b4570cd999230264dfb717b4dc22c",
+  "schema_version": 11
 }
 ```
 

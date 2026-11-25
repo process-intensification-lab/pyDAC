@@ -142,6 +142,7 @@ class KPIReporting:
             "solid_adsorbent_mass_g": self._kg_to_g(
                 self.kpis.context.adsorbent_mass
             ),
+            "co2_feed_uptake_g": self._kg_to_g(self.kpis.feed_uptake_mass("CO2")),
             "co2_adsorbed_g": self._kg_to_g(
                 transfer_map["CO2"]["Adsorbed in adsorption [kg]"]
             ),
@@ -200,8 +201,11 @@ class KPIReporting:
             "h2o_to_co2_ratio_kg_per_kg": self.kpis.h2o_to_co2_ratio(
                 basis="mass"
             ),
-            "preheating_min_bed_temperature_degC": self._k_to_c(
-                preheating["bed_minimum_K"]
+            # NaN without a preheating step: the constraint does not apply.
+            "preheating_min_bed_temperature_degC": (
+                self._k_to_c(preheating["bed_minimum_K"])
+                if preheating["bed_minimum_K"] is not None
+                else np.nan
             ),
             "preheating_steam_condensation_temperature_degC": (
                 self._k_to_c(preheating["steam_condensation_K"])
@@ -294,6 +298,11 @@ class KPIReporting:
                 "Unit": "g",
             },
             {
+                "Metric": "CO2 feed uptake (ads + press)",
+                "Value": metrics["co2_feed_uptake_g"],
+                "Unit": "g",
+            },
+            {
                 "Metric": "CO2 desorbed in desorption",
                 "Value": metrics["co2_desorbed_g"],
                 "Unit": "g",
@@ -367,19 +376,25 @@ class KPIReporting:
                 "Value": metrics["h2o_to_co2_ratio_kg_per_kg"],
                 "Unit": "kg/kg",
             },
-            {
-                "Metric": "Preheating minimum bed temperature",
-                "Value": metrics["preheating_min_bed_temperature_degC"],
-                "Unit": "degC",
-            },
-            {
-                "Metric": "Preheating steam condensation temperature",
-                "Value": metrics[
-                    "preheating_steam_condensation_temperature_degC"
-                ],
-                "Unit": "degC",
-            },
         ]
+        # Without a preheating step the preheating check does not apply: no rows.
+        if np.isfinite(metrics["preheating_min_bed_temperature_degC"]):
+            summary_rows.extend(
+                [
+                    {
+                        "Metric": "Preheating minimum bed temperature",
+                        "Value": metrics["preheating_min_bed_temperature_degC"],
+                        "Unit": "degC",
+                    },
+                    {
+                        "Metric": "Preheating steam condensation temperature",
+                        "Value": metrics[
+                            "preheating_steam_condensation_temperature_degC"
+                        ],
+                        "Unit": "degC",
+                    },
+                ]
+            )
         if metrics["steam_to_co2_ratio_kg_per_kgCO2"] is not None:
             summary_rows.extend(
                 [
@@ -431,7 +446,7 @@ class KPIReporting:
                 "KPI": "CO2 recovery",
                 "Value": metrics["co2_recovery_percent"],
                 "Unit": "%",
-                "Basis": "Recovered CO2 after vacuum discharge / CO2 adsorbed on state basis",
+                "Basis": "Recovered CO2 after vacuum discharge / CO2 feed uptake (ads + press) on state basis",
             },
             {
                 "KPI": "CO2 vented",
@@ -443,7 +458,7 @@ class KPIReporting:
                 "KPI": "CO2 vented",
                 "Value": metrics["co2_vented_percent_of_adsorbed"],
                 "Unit": "%",
-                "Basis": "Vented CO2 / CO2 adsorbed on state basis",
+                "Basis": "Vented CO2 / CO2 feed uptake (ads + press) on state basis",
             },
             {
                 "KPI": "CO2 purity (wet)",

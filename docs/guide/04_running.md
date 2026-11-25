@@ -43,7 +43,7 @@ Step names are case-insensitive, and the long names are accepted too (`PRE-HEATI
 
 Every step starts from the state the previous step left; the first step starts from the
 initial values of `startup`: its temperature, pressure, gas composition and sorbent
-loadings, which you can set, uniform over the bed. pyDAC 3.1.0 has no way to start a run
+loadings, which you can set, uniform over the bed. pyDAC 3.2.0 has no way to start a run
 from your own spatial profile.
 
 ## When a step stops
@@ -87,7 +87,7 @@ pydac steps --case my_case.json
 ```
 
 The run prints its run folder when it starts and when it ends. Each step has a folder named
-after it, here under `simulation_results/step_mode/packed_bed_7a4930a5/1D_mode/`, with its
+after it, here under `simulation_results/step_mode/packed_bed_d3aac08f/1D_mode/`, with its
 solution (`sol.pkl`) and its KPI table (`kpis.csv`). Step profile plots are written when
 `execution.plot_profiles` is true (default false), in `execution.plot_format` (default
 `pdf`; `png` for figures to show in a notebook).
@@ -100,7 +100,7 @@ To replay every step from its saved solution, for example to draw the profile pl
 afterwards, set `execution.solve` to false:
 
 ```bash
-pydac steps --resume simulation_results/step_mode/packed_bed_7a4930a5 --set execution.solve=false --set execution.plot_profiles=true
+pydac steps --resume simulation_results/step_mode/packed_bed_d3aac08f --set execution.solve=false --set execution.plot_profiles=true
 ```
 
 To keep the first steps and solve the rest again, mark the steps to keep with
@@ -109,7 +109,7 @@ in the run folder, so after the replay above `execution.solve` is still false: s
 to true, or every step is replayed again:
 
 ```bash
-pydac steps --resume simulation_results/step_mode/packed_bed_7a4930a5 --set execution.solve=true --set 'execution.step_options={"startup":{"solve":false},"blow":{"solve":false},"heat":{"solve":false}}'
+pydac steps --resume simulation_results/step_mode/packed_bed_d3aac08f --set execution.solve=true --set 'execution.step_options={"startup":{"solve":false},"blow":{"solve":false},"heat":{"solve":false}}'
 ```
 
 The kept steps must form a leading block: a step after a re-solved one is refused, because
@@ -149,11 +149,11 @@ run. `pydac.run_css` writes the same files as `pydac css`.
 ### Continue a CSS run
 
 A run that stopped at `execution.max_cycles` continues with `--resume` and a higher limit.
-The folder is the one the CSS run above printed (`packed_bed_08773fa0` for that command;
+The folder is the one the CSS run above printed (`packed_bed_63007761` for that command;
 any change to the case gives another name):
 
 ```bash
-pydac css --resume simulation_results/cyclic_mode/packed_bed_08773fa0 --set execution.max_cycles=4
+pydac css --resume simulation_results/cyclic_mode/packed_bed_63007761 --set execution.max_cycles=4
 ```
 
 It starts after the last completed cycle, from that cycle's final state. A run that already
@@ -177,7 +177,7 @@ The report rebuilds only the cycle outputs, from what the run saved: the step KP
 and names the file.
 
 ```bash
-pydac css --report simulation_results/cyclic_mode/packed_bed_08773fa0 --cycle 3 --set execution.plot_format=png
+pydac css --report simulation_results/cyclic_mode/packed_bed_63007761 --cycle 3 --set execution.plot_format=png
 ```
 
 A step run has no report; replay it with `--resume` as shown above.
@@ -227,14 +227,14 @@ run used its own. Give those schedules again to keep them, as
 [tutorial 03](../../examples/notebooks/03_css_tvsa.ipynb) does.
 
 ```bash
-pydac css --report simulation_results/cyclic_mode/packed_bed_08773fa0 --snapshot-times '{"cool": {"T_bed": {"times": [0, 2, 5, 10, 20, 55], "unit": "min"}}}'
+pydac css --report simulation_results/cyclic_mode/packed_bed_63007761 --snapshot-times '{"cool": {"T_bed": {"times": [0, 2, 5, 10, 20, 55], "unit": "min"}}}'
 ```
 
-Nothing is solved: every step of the cycle is reloaded from its `sol.pkl` (about a minute
-on a 50 x 25 grid) and only the step plots are written: the step logs and step KPIs stay as
-the run wrote them. It needs the saved solutions of that cycle and the final state of the
-cycle before it, so a run with `execution.keep_only_final_cycle` refuses it for any cycle
-after the first.
+Nothing is solved: every step of the cycle is reloaded from its `sol.pkl` (about a minute on a
+50 x 25 grid). The step plots are drawn again, and so is the cycle report (CSS plots, KPI
+files, oxygen check); the step logs and step KPIs stay as the run wrote them. It needs the
+saved solutions of that cycle and the final state of the cycle before it, so a run with
+`execution.keep_only_final_cycle` refuses it for any cycle after the first.
 
 In Python: `pydac.run_css(case, snapshot_times={"heat": {"T_bed": {...}}})` (the same for
 `pydac.run_steps`), and `pydac.report(folder, snapshot_times={...})`.
@@ -267,7 +267,7 @@ the run folder, and stops before solving; `--print-resolved` prints the complete
 settings) and prints what would run:
 
 ```bash
-pydac steps --resume simulation_results/step_mode/packed_bed_7a4930a5 --set execution.solve=false --dry-run
+pydac steps --resume simulation_results/step_mode/packed_bed_d3aac08f --set execution.solve=false --dry-run
 ```
 
 Every refusal exits with code `2` before anything is written, with or without `--dry-run`.

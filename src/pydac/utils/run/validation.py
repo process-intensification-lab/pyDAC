@@ -157,29 +157,39 @@ def validate_steps_against_mixture(case, executed_steps):
     validate_event_metrics_against_mixture(case, executed_steps)
 
 
-def _event_mode_steps(case, executed_steps):
-    """Executed steps that run in event mode in at least one cycle of the case.
+def reachable_termination_modes(case):
+    """Termination modes each cycle step can run in, as a set per step name.
 
     A step's mode is its own `termination.mode` unless an execution override
-    sets one: the global `termination_mode`, then a cycle's, then a step's.
+    sets one: the global `termination_mode`, then a cycle's, then a step's. Only
+    cycles a CSS run can reach count (from `resume_from_cycle`, default 1, to
+    `max_cycles`). Solve flags, restarts and replays are not resolved, so a mode
+    that is never solved can still be listed.
     """
     execution = case.execution
+    first = execution.resume_from_cycle or 1
     overrides = [(execution.termination_mode, execution.step_options)]
-    for options in execution.cycle_options.values():
+    for index, options in execution.cycle_options.items():
+        if not first <= index <= execution.max_cycles:
+            continue
         overrides.append((
             options.get("termination_mode", execution.termination_mode),
             options.get("step_options", {}),
         ))
     own = {step.name: step.config.termination.mode for step in case.simulation.cycle.steps}
-    return sorted(
-        name
-        for name in set(executed_steps)
-        if any(
-            (step_options.get(name, {}).get("termination_mode") or mode or own[name])
-            == "event"
+    return {
+        name: {
+            step_options.get(name, {}).get("termination_mode") or mode or own_mode
             for mode, step_options in overrides
-        )
-    )
+        }
+        for name, own_mode in own.items()
+    }
+
+
+def _event_mode_steps(case, executed_steps):
+    """Executed steps that run in event mode in at least one reachable cycle."""
+    modes = reachable_termination_modes(case)
+    return sorted(name for name in set(executed_steps) if "event" in modes[name])
 
 
 def validate_event_metrics_against_mixture(case, executed_steps):
